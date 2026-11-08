@@ -388,10 +388,10 @@ export function createStory(ui, stage) {
     if (state.spills === 0) {
       await ui.say('旁白', '他走了。\n刀留下了。');
       await ui.say('旁白', '门推开，雪灌进来。\n外面没有人。');
-      ui.fade(true);
       await ui.say('旁白', '你走进雪里。\n这张脸不是你的，路是你的。');
       ui.hidePanel();
-      await wait(900);
+      ui.fadeOutWorld();
+      await wait(2400);
       completeHandoff();
       return;
     }
@@ -402,23 +402,28 @@ export function createStory(ui, stage) {
       await ui.say('旁白', '第三刀你跪下去了。\n膝盖是阿七的，疼是你的。');
       await ui.say('旁白', '你用刀撑着站起来。\n他们没再动。');
       await ui.say('旁白', '血滴在雪上，一个一个洞。\n巷口的灯灭了。\n你还站着。');
-      ui.fade(true);
       await ui.say('旁白', '这张脸，从今夜起才算是你的。');
       ui.hidePanel();
-      await wait(900);
+      ui.fadeOutWorld();
+      await wait(2400);
       completeHandoff();
       return;
     }
 
-    await ui.say('旁白', '门外的雪，比山门那场火还白。\n捕快站在灯下，身后四个人。');
-    await ui.say('旁白', '第一刀从左边来。\n你没看清，只听见风。');
-    await ui.say('旁白', '刀进了你的肩。\n热的——这具身体的血，也烫。');
-    await ui.say('旁白', '第二刀、第三刀——\n你都接住了。');
-    await ui.say('旁白', '最后站着的人是你。\n雪落在刀上，化得很慢。');
-    ui.fade(true);
-    await ui.say('旁白', '你走出巷子，没有回头。');
+    const scenes = [
+      ['01-first-blade_1.jpg', '第一刀从左边来。\n你没看清，只听见风。\n刀进了你的肩——这具身体的血，也烫。'],
+      ['02-surrounded.jpg', '门外的雪，比山门那场火还白。\n捕快站在灯下，身后四个人。'],
+      ['03-three-blows_1.jpg', '第二刀、第三刀——\n你都接住了。'],
+      ['04-still-standing.jpg', '你用刀撑着站起来。\n他们没再动。\n血滴在雪上，一个一个洞。'],
+      ['05-walk-away.jpg', '你走出巷子，没有回头。\n这张脸不是你的，路是你的。'],
+    ];
+    for (const [image, text] of scenes) {
+      ui.showEnding(`assets/ending/${image}`);
+      await ui.say('旁白', text);
+    }
     ui.hidePanel();
-    await wait(900);
+    ui.fadeOutWorld();
+    await wait(2400);
     completeHandoff();
   }
 

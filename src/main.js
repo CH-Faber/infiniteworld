@@ -355,6 +355,8 @@ function intro() {
 
 /* 结尾不再弹二维结算卡：画面自己淡下去，剩下交给下一队 */
 const fadeEl = document.getElementById('fade');
+const endingEl = document.getElementById('ending');
+const endingImg = document.getElementById('ending-image');
 
 const ui = {
   intro,
@@ -368,6 +370,19 @@ const ui = {
   showHint: (t) => { hintEl.textContent = t; hintEl.classList.remove('gone'); },
   hideHint: () => { hintEl.classList.add('gone'); },
   fade: (on = true) => { fadeEl.style.opacity = on ? '1' : '0'; },
+  showEnding: (src) => {
+    endingEl.hidden = false;
+    document.body.classList.add('ending');
+    endingImg.src = src;
+    endingImg.style.animation = 'none';
+    void endingImg.offsetWidth;
+    endingImg.style.animation = '';
+  },
+  fadeOutWorld: () => {
+    fadeEl.style.opacity = '1';
+    endingEl.classList.add('leaving');
+    document.body.classList.add('world-leaving');
+  },
 };
 
 const story = createStory(ui, {

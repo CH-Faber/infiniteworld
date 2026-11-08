@@ -13,6 +13,10 @@
 <div class="vignette" aria-hidden="true"></div>
 <div class="grain" aria-hidden="true"></div>
 <div id="fade" aria-hidden="true"></div>
+<div id="ending" aria-hidden="true" hidden>
+  <img id="ending-image" alt="雪夜中独自持刀的阿七">
+  <div class="ending-shade"></div>
+</div>
 
 <header id="brand">
   <div class="brand-name">武侠客栈</div>
@@ -51,12 +55,20 @@
 <script>
 (function () {
   var hasWL = typeof WL !== 'undefined' && WL;
+  window.CONFIG = window.CONFIG || {
+    level: 2,
+    world: '武侠客栈',
+    nextWorld: '下一座城',
+    nextUrl: window.location.href
+  };
   window.IW_HANDOFF = {
     read: function () {
       return hasWL && WL.readSave ? WL.readSave() : {};
     },
     complete: function (save, opts) {
       if (!hasWL || !WL.completeLevel) return null;
+      opts = opts || {};
+      if (!opts.nextUrl) opts.nextUrl = window.CONFIG.nextUrl || window.location.href;
       return WL.completeLevel(window.CONFIG || {}, save, opts);
     },
     fail: function (reason, save) {

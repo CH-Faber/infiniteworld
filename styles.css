@@ -529,6 +529,74 @@ body.arriving #cursor-tag {
 
 #sound:hover { color: var(--warm); }
 
+/* 结尾分镜：图片铺满画面，旁白沿用现有推进交互 */
+#ending {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  overflow: hidden;
+  background: #040507;
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 2.2s ease;
+}
+
+#ending.leaving { opacity: 0; }
+
+#ending-image {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  object-position: center;
+  animation: ending-drift 12s ease-out both;
+}
+
+.ending-shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, rgba(3, 5, 8, 0.16), transparent 42%, rgba(3, 5, 8, 0.9));
+}
+
+body.ending #dialog {
+  z-index: 21;
+  width: min(900px, calc(100% - 64px));
+  padding-bottom: 8vh;
+  transition: opacity 1.2s ease;
+}
+
+body.ending .panel-rule { margin-bottom: 20px; }
+
+body.ending .panel-body {
+  padding: 12px 28px 18px;
+  border: 0;
+  background: transparent;
+  backdrop-filter: none;
+  box-shadow: none;
+  text-align: center;
+}
+
+body.ending .line {
+  font-size: clamp(18px, 2vw, 25px);
+  line-height: 1.9;
+  letter-spacing: 0.16em;
+  color: #f1e9da;
+  text-shadow: 0 2px 8px #000, 0 0 24px #000;
+}
+
+body.ending .next { float: none; margin-top: 20px; }
+body.ending #brand,
+body.ending #hud,
+body.ending #hint,
+body.ending #footer,
+body.ending #reticle { opacity: 0; pointer-events: none; }
+body.world-leaving #dialog { opacity: 0; }
+
+@keyframes ending-drift {
+  from { opacity: 0.25; transform: scale(1.045); }
+  to { opacity: 1; transform: scale(1); }
+}
+
 /* 结尾淡出：只压画面，不挡对话 */
 #fade {
   position: fixed;
@@ -550,4 +618,8 @@ body.arriving #cursor-tag {
   .line { font-size: 15px; line-height: 1.9; }
   #footer { left: 20px; right: 20px; bottom: 10px; }
   .footer-hint { display: inline; font-size: 10px; letter-spacing: 0.08em; }
+  body.ending #dialog { width: calc(100% - 24px); padding-bottom: 6vh; }
+  body.ending .panel-body { padding: 10px 8px 16px; }
+  body.ending .line { font-size: 17px; letter-spacing: 0.08em; }
+  #ending-image { object-position: 52% center; }
 }
