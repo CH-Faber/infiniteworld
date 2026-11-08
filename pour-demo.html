@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>斟酒 · 手感试验台</title>
+<style>
+  html,body{margin:0;height:100%;background:#0a0708;overflow:hidden;
+    font-family:"Songti SC","STSong",serif;color:#e9d7b6}
+  canvas{display:block}
+  #hud{position:fixed;left:50%;top:5%;transform:translateX(-50%);text-align:center;
+    letter-spacing:.22em;font-size:15px;opacity:.9;pointer-events:none}
+  #hud b{color:#ffcf8a;font-weight:400}
+  #meter{margin-top:10px;width:220px;height:3px;background:rgba(255,207,138,.16);position:relative}
+  #fill{position:absolute;left:0;top:0;height:100%;width:0;background:#ffcf8a;transition:width .05s linear}
+  #tick{position:absolute;top:-4px;width:1px;height:11px;background:#8fd0ff}
+  #band{position:absolute;top:0;height:100%;background:rgba(143,208,255,.22)}
+  #tip{position:fixed;left:50%;bottom:7%;transform:translateX(-50%);font-size:14px;
+    letter-spacing:.2em;opacity:.5;pointer-events:none}
+  #result{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;
+    font-size:22px;letter-spacing:.3em;opacity:0;transition:opacity .4s}
+  #result.on{opacity:1}
+  #again{position:fixed;left:50%;bottom:16%;transform:translateX(-50%);
+    background:transparent;border:1px solid rgba(233,185,120,.35);color:#e9b978;
+    font-family:inherit;font-size:14px;letter-spacing:.3em;padding:10px 26px;cursor:pointer;
+    opacity:0;pointer-events:none;transition:opacity .4s}
+  #again.on{opacity:1;pointer-events:auto}
+</style>
+</head>
+<body>
+<div id="hud">
+  <div>这杯倒到 <b id="target">七分</b> 止</div>
+  <div id="meter"><div id="band"></div><div id="fill"></div><div id="tick"></div></div>
+</div>
+<div id="tip">按住鼠标或空格 · 松手停</div>
+<div id="result"></div>
+<button id="again">再倒一杯</button>
+
+<script type="module">
+import * as THREE from './vendor/three.module.js';
+import { createPour } from './src/pour.js';
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.shadowMap.enabled = true;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0a0708);
+scene.fog = new THREE.FogExp2(0x0a0708, 0.5);
+
+const camera = new THREE.PerspectiveCamera(46, innerWidth / innerHeight, 0.01, 20);
+
+/* 一张桌面 */
+const table = new THREE.Mesh(
+  new THREE.BoxGeometry(1.4, 0.06, 0.9),
+  new THREE.MeshStandardMaterial({ color: 0x2a1d12, roughness: 0.9 })
+);
+table.position.set(0, -0.03, 0.1);
+table.receiveShadow = true;
+scene.add(table);
+
+/* 环境光：一盏暖的，一盏冷边 */
+const warm = new THREE.PointLight(0xffb070, 2.2, 4, 2);
+warm.position.set(0.5, 0.9, 0.7);
+scene.add(warm);
+const cool = new THREE.PointLight(0x6f8db8, 0.8, 4, 2);
+cool.position.set(-0.8, 0.6, -0.6);
+scene.add(cool);
+scene.add(new THREE.AmbientLight(0x222018, 0.9));
+
+const pour = createPour(scene);
+
+const WIDE_POS = new THREE.Vector3(0, 0.42, 0.92);
+const WIDE_LOOK = new THREE.Vector3(0, 0.09, 0);
+
+let running = false;
+const fillEl = document.getElementById('fill');
+const bandEl = document.getElementById('band');
+const tickEl = document.getElementById('tick');
+const targetEl = document.getElementById('target');
+const resultEl = document.getElementById('result');
+const againEl = document.getElementById('again');
+
+const CN = ['零','一','二','三','四','五','六','七','八','九','十'];
+
+function startRun() {
+  resultEl.classList.remove('on');
+  againEl.classList.remove('on');
+  running = true;
+  const anchor = new THREE.Vector3(0, 0.004, 0);
+  pour.start(anchor, new THREE.Vector3(0, 0, 1)).then((r) => {
+    running = false;
+    const txt = r.hit ? '稳' : (r.level > r.target ? '满出来了' : '差了半分');
+    resultEl.textContent = txt;
+    resultEl.classList.add('on');
+    againEl.classList.add('on');
+    setTimeout(() => resultEl.classList.remove('on'), 1400);
+  });
+}
+
+function updateMeter() {
+  const s = pour.state;
+  const lv = Math.max(0, Math.min(1, s.level));
+  fillEl.style.width = (lv * 100) + '%';
+  const t = s.target * 100;
+  tickEl.style.left = t + '%';
+  const half = s.tol * 100;
+  bandEl.style.left = Math.max(0, t - half) + '%';
+  bandEl.style.width = (half * 2) + '%';
+  targetEl.textContent = CN[Math.round(s.target * 10)] + '分';
+}
+
+const clock = new THREE.Clock();
+const pos = new THREE.Vector3().copy(WIDE_POS);
+const look = new THREE.Vector3().copy(WIDE_LOOK);
+
+function tick() {
+  const dt = Math.min(clock.getDelta(), 0.05);
+  if (running) pour.update(dt);
+
+  const k = pour.cine.k;
+  pos.lerpVectors(WIDE_POS, pour.cine.pos, k);
+  look.lerpVectors(WIDE_LOOK, pour.cine.look, k);
+  camera.position.copy(pos);
+  camera.lookAt(look);
+
+  updateMeter();
+  renderer.render(scene, camera);
+  requestAnimationFrame(tick);
+}
+
+renderer.domElement.addEventListener('pointerdown', (e) => { e.preventDefault(); pour.press(); });
+addEventListener('pointerup', () => pour.release());
+addEventListener('keydown', (e) => {
+  if (e.code === 'Space') { e.preventDefault(); pour.press(); }
+});
+addEventListener('keyup', (e) => { if (e.code === 'Space') pour.release(); });
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+againEl.addEventListener('click', startRun);
+
+startRun();
+tick();
+</script>
+</body>
+</html>
