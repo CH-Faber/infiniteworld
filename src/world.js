@@ -558,6 +558,13 @@ export function buildWorld(scene) {
   plaque.rotation.y = Math.PI;
   root.add(plaque);
   box(3.24, 1.34, 0.12, woodDark, 0, 5.12, 8.09, root, false);
+  // 朝街的匾额：开场镜头从长街走近时看到的是这一面
+  const streetPlaque = new THREE.Mesh(
+    new THREE.PlaneGeometry(3.0, 1.12),
+    new THREE.MeshBasicMaterial({ map: signTex('听雨楼', 1024, 384) })
+  );
+  streetPlaque.position.set(0, 5.12, 8.16);
+  root.add(streetPlaque);
 
   // 门槛 · 门枕石 · 卷起的门帘（门扇卸了，夜里敞着迎客）
   box(7.2, 0.16, 0.34, wood, 0, 0.08, 8.28, root, false);

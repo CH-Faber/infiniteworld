@@ -340,7 +340,7 @@ body.locked #cursor-tag { display: none; }
   z-index: 11;
 }
 
-/* 开场过场：上一世界 → 武侠客栈。画在 #stage 之上，结束后整块移除 */
+/* 穿越段：上一世残影与白闪；结束时由 3D 长街接住 */
 #transit {
   position: fixed;
   inset: 0;
@@ -349,6 +349,123 @@ body.locked #cursor-tag { display: none; }
   display: block;
   z-index: 25;
   background: #05070a;
+}
+
+/* 入场段：镜头直接飞在 Three.js 大堂里，这里只负责字幕与白场 */
+#arrival {
+  position: fixed;
+  inset: 0;
+  z-index: 25;
+  pointer-events: none;
+  font-family: var(--serif);
+  transition: opacity 0.42s ease;
+}
+
+#arrival.leaving { opacity: 0; }
+
+.arrival-black {
+  position: absolute;
+  inset: 0;
+  background: #faf7f0;
+}
+
+.arrival-letterbox::before,
+.arrival-letterbox::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 5.5vh;
+  background: rgba(2, 3, 5, 0.94);
+  transition: transform 1.4s ease;
+}
+
+.arrival-letterbox::before { top: 0; }
+.arrival-letterbox::after { bottom: 0; }
+#arrival.inside .arrival-letterbox::before { transform: translateY(-100%); }
+#arrival.inside .arrival-letterbox::after { transform: translateY(100%); }
+
+.arrival-origin,
+.arrival-title {
+  position: absolute;
+  left: 50%;
+  top: 24%;
+  width: min(680px, 86vw);
+  transform: translateX(-50%);
+  text-align: center;
+  opacity: 0;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.9);
+}
+
+.arrival-origin span,
+.arrival-title > span {
+  font-size: 12px;
+  letter-spacing: 0.42em;
+  color: rgba(233, 185, 120, 0.72);
+}
+
+.arrival-origin p {
+  margin: 15px 0 0;
+  font-size: 17px;
+  letter-spacing: 0.14em;
+  color: rgba(228, 220, 205, 0.82);
+}
+
+.arrival-title { top: 20%; }
+
+.arrival-title h1 {
+  margin: 13px 0 10px;
+  font-size: clamp(42px, 6vw, 72px);
+  font-weight: 400;
+  letter-spacing: 0.24em;
+  text-indent: 0.24em;
+  color: #eee2cd;
+  text-shadow: 0 0 34px rgba(233, 185, 120, 0.18), 0 3px 20px #000;
+}
+
+.arrival-title p {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.36em;
+  color: rgba(233, 185, 120, 0.66);
+}
+
+.arrival-enter {
+  position: absolute;
+  left: 50%;
+  bottom: 16%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 14px;
+  letter-spacing: 0.3em;
+  color: rgba(238, 226, 205, 0.9);
+  text-shadow: 0 2px 12px #000;
+  opacity: 0;
+}
+
+.arrival-skip {
+  position: absolute;
+  right: 36px;
+  bottom: 28px;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  color: var(--text-dim);
+  opacity: 0;
+}
+
+body.arriving #brand,
+body.arriving #hud,
+body.arriving #hint,
+body.arriving #footer,
+body.arriving #cursor-tag {
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (max-width: 640px) {
+  .arrival-title h1 { font-size: 42px; }
+  .arrival-enter { font-size: 12px; letter-spacing: 0.18em; }
+  .arrival-skip { right: 22px; bottom: 20px; }
 }
 
 #footer {

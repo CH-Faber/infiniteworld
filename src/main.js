@@ -3,6 +3,7 @@ import { buildWorld } from './world.js';
 import { createPour } from './pour.js';
 import { createStory } from './story.js';
 import { playTransition } from './transition.js';
+import { playRift } from './rift.js';
 
 const canvas = document.getElementById('stage');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
@@ -47,6 +48,7 @@ function focus(id) {
 }
 
 let activeFocus = null;
+let arrival = null;
 
 /* ---------- 交互 ---------- */
 
@@ -331,9 +333,15 @@ function toast(msg) {
   }, 1500);
 }
 
-/* 开场：上一世界 → 武侠客栈的过场，播完再把 HUD 交出来 */
+/* 开场：先穿越，再由白光接进 3D 长街，最后穿门落到阿七的位置 */
 function intro() {
-  return playTransition().then(() => {
+  return playRift().then(() => {
+    arrival = playTransition({ camera, endPosition: BASE_POS, endLook: BASE_LOOK });
+    return arrival.promise;
+  }).then(() => {
+    arrival = null;
+    camPos.copy(BASE_POS);
+    camLook.copy(BASE_LOOK);
     hudEl.classList.add('on');
   });
 }
@@ -484,6 +492,14 @@ function tick() {
 
   world.update(dt);
   pour.update(dt);
+
+  // 过场期间只让镜头沿 3D 路径运动，场景里的雪、灯、客人仍在实时更新
+  if (arrival) {
+    arrival.update(dt);
+    renderer.render(scene, camera);
+    requestAnimationFrame(tick);
+    return;
+  }
 
   // 视角不再回中，纯惯性平滑
   yaw += (targetYaw - yaw) * 0.14;
