@@ -132,6 +132,7 @@ body.hot { cursor: pointer; }
 
 body.locked { cursor: none; }
 
+#hint {
   position: fixed;
   bottom: 46px;
   left: 50%;

@@ -21,6 +21,8 @@ const world = buildWorld(scene, renderer);
 /* ---------- 镜头 ---------- */
 
 const player = { position: new THREE.Vector3(0.8, 0, 7.0), floor: 0, radius: 0.32, eyeHeight: 1.62 };
+const BASE_POS = new THREE.Vector3(0.8, 1.62, 7.0);
+const BASE_LOOK = new THREE.Vector3(1.1, 1.42, -3.8);
 let yaw = 0, pitch = 0;
 let targetYaw = 0, targetPitch = 0;
 const keys = new Set();
