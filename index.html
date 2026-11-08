@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>听雨楼 · 无限世界</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%2307080a'/%3E%3Ctext x='16' y='21' font-size='15' text-anchor='middle' fill='%23e9b978'%3E听%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -14,16 +15,17 @@
 
 <header id="brand">
   <div class="brand-name">听雨楼</div>
-  <div class="brand-sub">副本 · 第一夜</div>
+  <div class="brand-sub">第二副本 · 一壶浊茶</div>
 </header>
 
 <div id="hud">
-  <div class="stat"><span class="stat-k">银两</span><i id="bar-silver"></i><span class="stat-v" id="val-silver">零</span></div>
+  <div class="stat"><span class="stat-k">赏钱</span><i id="bar-silver"></i><span class="stat-v" id="val-silver">零</span></div>
   <div class="stat"><span class="stat-k">名声</span><i id="bar-fame"></i><span class="stat-v" id="val-fame">零</span></div>
   <div class="stat"><span class="stat-k">疑心</span><i id="bar-suspicion"></i><span class="stat-v" id="val-suspicion">零</span></div>
+  <div class="stat"><span class="stat-k">已斟</span><i id="bar-served"></i><span class="stat-v" id="val-served">零</span></div>
 </div>
 
-<div id="hint">挪动视线，找找堂上还有什么</div>
+<div id="hint">堂上有四桌客人等着添茶</div>
 <div id="cursor-tag"></div>
 
 <section id="dialog" class="panel" hidden>
@@ -40,6 +42,7 @@
 
 <section id="intro">
   <p class="intro-line">欢迎来到无限世界</p>
+  <p class="intro-sub">第二副本 · 听雨楼</p>
 </section>
 
 <section id="ending" hidden>
@@ -48,7 +51,7 @@
     <h1 class="ending-title" id="ending-title"></h1>
     <p class="ending-text" id="ending-text"></p>
     <div class="ending-stats" id="ending-stats"></div>
-    <p class="ending-note">你留下的东西，下一队推门时会先看见它。</p>
+    <p class="ending-note">你留下的东西，下一队进门时会先看见它。</p>
     <a class="again next-level" href="levels/wuxia-inn/index.html">推门 · 武侠客栈</a>
     <button class="again" id="again">再推一次门</button>
   </div>
@@ -56,7 +59,7 @@
 
 <footer id="footer">
   <button id="sound" title="声音">雨声 · 开</button>
-  <span class="footer-hint">拖拽可轻微环视</span>
+  <span class="footer-hint">拖拽环视 · 身后是街</span>
 </footer>
 
 <script type="module" src="src/main.js"></script>

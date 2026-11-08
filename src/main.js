@@ -8,7 +8,7 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.3;
+renderer.toneMappingExposure = 1.5;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap;
 
@@ -19,8 +19,8 @@ const world = buildWorld(scene, renderer);
 
 /* ---------- 镜头 ---------- */
 
-const BASE_POS = new THREE.Vector3(0, 1.6, 3.85);
-const BASE_LOOK = new THREE.Vector3(0.25, 1.42, -1.6);
+const BASE_POS = new THREE.Vector3(0.8, 1.62, 6.2);
+const BASE_LOOK = new THREE.Vector3(1.1, 1.42, -3.6);
 
 let yaw = 0, pitch = 0;
 let targetYaw = 0, targetPitch = 0;
@@ -71,6 +71,16 @@ function pickHotspot(clientX, clientY) {
   return null;
 }
 
+function pickAnyObject(clientX, clientY) {
+  ndc.x = (clientX / window.innerWidth) * 2 - 1;
+  ndc.y = -(clientY / window.innerHeight) * 2 + 1;
+  raycaster.setFromCamera(ndc, camera);
+  return raycaster.intersectObjects(world.raycastables, false).length > 0;
+}
+
+const MISS_LINES = ['这一处，只有潮气和油烟。', '茶客们各说各的，没人理你。', '你只是个端茶的。', '帘子后头，什么也没有。'];
+let lastMissAt = 0;
+
 window.addEventListener('pointermove', (e) => {
   pointerX = e.clientX / window.innerWidth;
   pointerY = e.clientY / window.innerHeight;
@@ -83,8 +93,8 @@ window.addEventListener('pointermove', (e) => {
     if (Math.hypot(dx, dy) > 6) dragging = true;
   }
   if (dragging && pointerDownAt) {
-    targetYaw = THREE.MathUtils.clamp(targetYaw - (e.clientX - pointerDownAt.x) * 0.0018, -0.55, 0.55);
-    targetPitch = THREE.MathUtils.clamp(targetPitch + (e.clientY - pointerDownAt.y) * 0.0014, -0.2, 0.26);
+    targetYaw = THREE.MathUtils.clamp(targetYaw - (e.clientX - pointerDownAt.x) * 0.0022, -3.05, 3.05);
+    targetPitch = THREE.MathUtils.clamp(targetPitch + (e.clientY - pointerDownAt.y) * 0.0016, -0.22, 0.3);
     pointerDownAt = { x: e.clientX, y: e.clientY };
   }
 
@@ -119,13 +129,43 @@ window.addEventListener('pointerup', (e) => {
   const id = pickHotspot(e.clientX, e.clientY);
   if (id) {
     hintEl.classList.add('gone');
+    world.setGlow(id, false);
     story.inspect(id);
+    return;
+  }
+  // 点到了东西、但不是可交互物件：给一句反馈，别让人以为页面死了
+  if (pickAnyObject(e.clientX, e.clientY)) {
+    const t = performance.now();
+    if (t - lastMissAt > 2200) {
+      lastMissAt = t;
+      toast(MISS_LINES[Math.floor(Math.random() * MISS_LINES.length)]);
+    }
   }
 });
 
 window.addEventListener('pointerleave', () => {
   dragging = false;
   pointerDownAt = null;
+});
+
+// 键盘推进：空格 / 回车继续，1~3 选择选项
+window.addEventListener('keydown', (e) => {
+  if (e.repeat || dlg.hidden) return;
+
+  if (!nextBtn.hidden && (e.key === 'Enter' || e.key === ' ' || e.code === 'Space')) {
+    e.preventDefault();
+    nextBtn.click();
+    return;
+  }
+
+  if (choicesEl.children.length && /^[1-9]$/.test(e.key)) {
+    const idx = Number(e.key) - 1;
+    const btn = choicesEl.children[idx];
+    if (btn) {
+      e.preventDefault();
+      btn.click();
+    }
+  }
 });
 
 /* ---------- 界面 ---------- */
@@ -151,6 +191,8 @@ function renderHud(s) {
     document.getElementById(labels[k]).textContent = CN[Math.min(s[k], 5)];
     document.getElementById(bars[k]).style.setProperty('--fill', `${Math.min(s[k] / 4, 1) * 100}%`);
   });
+  document.getElementById('val-served').textContent = CN[Math.min(s.served || 0, 5)];
+  document.getElementById('bar-served').style.setProperty('--fill', `${Math.min((s.served || 0) / 4, 1) * 100}%`);
 }
 
 function say(speaker, text) {
@@ -237,7 +279,7 @@ function end(payload) {
   document.getElementById('ending-text').textContent = payload.text;
   const s = story.state;
   document.getElementById('ending-stats').innerHTML =
-    `<span>银两<b>${CN[Math.min(s.silver, 5)]}</b></span>` +
+    `<span>赏钱<b>${CN[Math.min(s.silver, 5)]}</b></span>` +
     `<span>名声<b>${CN[Math.min(s.fame, 5)]}</b></span>` +
     `<span>疑心<b>${CN[Math.min(s.suspicion, 5)]}</b></span>` +
     `<span>留下<b>${payload.item}</b></span>`;
@@ -257,6 +299,7 @@ const ui = {
   hud: renderHud,
   end,
   focusOn: focus,
+  showRelic: (id) => world.showRelic(id),
   showHint: (t) => { hintEl.textContent = t; hintEl.classList.remove('gone'); },
 };
 
@@ -265,6 +308,9 @@ const story = createStory(ui, {
   knock() {
     shake = 1;
     flash = 1;
+  },
+  pour(id) {
+    if (world.pourTea(id)) sfxPour();
   },
 });
 
@@ -324,6 +370,40 @@ document.getElementById('sound').onclick = (e) => {
   }
 };
 
+function sfxPour() {
+  if (!audioCtx || muted) return;
+  const ctx = audioCtx;
+  const now = ctx.currentTime;
+
+  const len = Math.floor(ctx.sampleRate * 0.9);
+  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * 0.9;
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+  const bp = ctx.createBiquadFilter();
+  bp.type = 'bandpass';
+  bp.frequency.value = 1500;
+  bp.Q.value = 1.1;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0, now);
+  g.gain.linearRampToValueAtTime(0.028, now + 0.14);
+  g.gain.exponentialRampToValueAtTime(0.0001, now + 0.9);
+  src.connect(bp).connect(g).connect(ctx.destination);
+  src.start(now);
+
+  const o = ctx.createOscillator();
+  o.type = 'sine';
+  o.frequency.setValueAtTime(980, now + 0.5);
+  const og = ctx.createGain();
+  og.gain.setValueAtTime(0, now + 0.5);
+  og.gain.linearRampToValueAtTime(0.011, now + 0.53);
+  og.gain.exponentialRampToValueAtTime(0.0001, now + 0.72);
+  o.connect(og).connect(ctx.destination);
+  o.start(now + 0.5);
+  o.stop(now + 0.8);
+}
+
 /* ---------- 循环 ---------- */
 
 const tmpPos = new THREE.Vector3();
@@ -343,9 +423,9 @@ function tick() {
 
   world.update(dt);
 
-  // 拖拽惯性回中
-  targetYaw *= 0.965;
-  targetPitch *= 0.965;
+  // 拖拽后保留视角，极慢回中
+  targetYaw *= 0.999;
+  targetPitch *= 0.999;
   yaw += (targetYaw - yaw) * 0.12;
   pitch += (targetPitch - pitch) * 0.12;
 
