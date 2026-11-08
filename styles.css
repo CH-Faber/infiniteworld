@@ -193,13 +193,36 @@ body.locked #cursor-tag { display: none; }
 
 #reticle i {
   display: block;
-  width: 6px;
-  height: 6px;
+  position: relative;
+  width: 7px;
+  height: 7px;
   margin: 0 auto;
-  border: 1px solid rgba(233, 185, 120, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.9);
   border-radius: 50%;
-  background: rgba(233, 185, 120, 0.3);
+  background: #fff;
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.8);
   transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+}
+
+#reticle i::before,
+#reticle i::after {
+  content: "";
+  position: absolute;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+#reticle i::before {
+  width: 15px;
+  height: 1px;
+  left: -5px;
+  top: 2px;
+}
+
+#reticle i::after {
+  width: 1px;
+  height: 15px;
+  left: 2px;
+  top: -5px;
 }
 
 #reticle.on i {
@@ -221,12 +244,12 @@ body.locked #cursor-tag { display: none; }
 
 #reticle.on span { opacity: 1; }
 
-/* 按交互类型分色：上酒=亮金，添茶=暗金，听书=冷蓝 */
-#reticle.wine i { border-color: #ffc36b; box-shadow: 0 0 14px rgba(255, 195, 107, 0.5); }
+/* 准星始终保持白色，交互状态仅通过轻微光晕提示 */
+#reticle.wine i,
+#reticle.tea i,
+#reticle.talk i { border-color: rgba(255, 255, 255, 0.95); box-shadow: 0 0 8px rgba(255, 255, 255, 0.55); }
 #reticle.wine span { color: #ffc36b; }
-#reticle.tea i { border-color: #d9c9a0; }
 #reticle.tea span { color: #d9c9a0; }
-#reticle.talk i { border-color: #9db4d0; box-shadow: 0 0 14px rgba(157, 180, 208, 0.45); }
 #reticle.talk span { color: #9db4d0; }
 
 .panel {
@@ -526,5 +549,5 @@ body.arriving #cursor-tag {
   .panel-body { padding: 20px 20px 22px; }
   .line { font-size: 15px; line-height: 1.9; }
   #footer { left: 20px; right: 20px; bottom: 10px; }
-  .footer-hint { display: none; }
+  .footer-hint { display: inline; font-size: 10px; letter-spacing: 0.08em; }
 }
