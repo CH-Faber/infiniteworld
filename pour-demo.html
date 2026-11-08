@@ -5,25 +5,27 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>斟酒 · 手感试验台</title>
 <style>
-  html,body{margin:0;height:100%;background:#0a0708;overflow:hidden;
-    font-family:"Songti SC","STSong",serif;color:#e9d7b6}
+  html,body{margin:0;height:100%;background:#0d0a09;overflow:hidden;
+    font-family:"Songti SC","STSong",serif;color:#e9d7b6;user-select:none}
   canvas{display:block}
-  #hud{position:fixed;left:50%;top:5%;transform:translateX(-50%);text-align:center;
-    letter-spacing:.22em;font-size:15px;opacity:.9;pointer-events:none}
+  #hud{position:fixed;left:50%;top:6%;transform:translateX(-50%);text-align:center;
+    letter-spacing:.2em;font-size:15px;pointer-events:none}
   #hud b{color:#ffcf8a;font-weight:400}
-  #meter{margin-top:10px;width:220px;height:3px;background:rgba(255,207,138,.16);position:relative}
-  #fill{position:absolute;left:0;top:0;height:100%;width:0;background:#ffcf8a;transition:width .05s linear}
-  #tick{position:absolute;top:-4px;width:1px;height:11px;background:#8fd0ff}
-  #band{position:absolute;top:0;height:100%;background:rgba(143,208,255,.22)}
-  #tip{position:fixed;left:50%;bottom:7%;transform:translateX(-50%);font-size:14px;
-    letter-spacing:.2em;opacity:.5;pointer-events:none}
-  #result{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;
-    font-size:22px;letter-spacing:.3em;opacity:0;transition:opacity .4s}
+  #meter{margin:12px auto 0;width:260px;height:6px;background:rgba(255,207,138,.14);
+    position:relative;border-radius:3px;overflow:hidden}
+  #band{position:absolute;top:0;height:100%;background:rgba(143,208,255,.30)}
+  #fill{position:absolute;left:0;top:0;height:100%;width:0;background:#ffcf8a}
+  #tick{position:absolute;top:-2px;width:2px;height:10px;background:#8fd0ff}
+  #num{margin-top:8px;font-size:12px;letter-spacing:.14em;opacity:.55}
+  #tip{position:fixed;left:50%;bottom:8%;transform:translateX(-50%);font-size:14px;
+    letter-spacing:.2em;opacity:.55;pointer-events:none;text-align:center;line-height:2}
+  #result{position:fixed;left:50%;top:46%;transform:translate(-50%,-50%);text-align:center;
+    font-size:26px;letter-spacing:.35em;opacity:0;transition:opacity .35s;pointer-events:none}
   #result.on{opacity:1}
-  #again{position:fixed;left:50%;bottom:16%;transform:translateX(-50%);
+  #again{position:fixed;left:50%;bottom:18%;transform:translateX(-50%);
     background:transparent;border:1px solid rgba(233,185,120,.35);color:#e9b978;
     font-family:inherit;font-size:14px;letter-spacing:.3em;padding:10px 26px;cursor:pointer;
-    opacity:0;pointer-events:none;transition:opacity .4s}
+    opacity:0;pointer-events:none;transition:opacity .35s}
   #again.on{opacity:1;pointer-events:auto}
 </style>
 </head>
@@ -31,6 +33,7 @@
 <div id="hud">
   <div>这杯倒到 <b id="target">七分</b> 止</div>
   <div id="meter"><div id="band"></div><div id="fill"></div><div id="tick"></div></div>
+  <div id="num">0% / 目标 0%</div>
 </div>
 <div id="tip">按住鼠标或空格 · 松手停</div>
 <div id="result"></div>
@@ -45,74 +48,95 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.05;
+renderer.toneMappingExposure = 1.15;
 renderer.shadowMap.enabled = true;
 document.body.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0a0708);
-scene.fog = new THREE.FogExp2(0x0a0708, 0.5);
+scene.background = new THREE.Color(0x120d0b);
 
-const camera = new THREE.PerspectiveCamera(46, innerWidth / innerHeight, 0.01, 20);
+const camera = new THREE.PerspectiveCamera(44, innerWidth / innerHeight, 0.01, 20);
 
-/* 一张桌面 */
+/* 桌面 */
 const table = new THREE.Mesh(
-  new THREE.BoxGeometry(1.4, 0.06, 0.9),
-  new THREE.MeshStandardMaterial({ color: 0x2a1d12, roughness: 0.9 })
+  new THREE.BoxGeometry(1.15, 0.07, 0.78),
+  new THREE.MeshStandardMaterial({ color: 0x36271a, roughness: 0.9 })
 );
-table.position.set(0, -0.03, 0.1);
+table.position.set(0, -0.035, -0.30);
 table.receiveShadow = true;
 scene.add(table);
 
-/* 环境光：一盏暖的，一盏冷边 */
-const warm = new THREE.PointLight(0xffb070, 2.2, 4, 2);
-warm.position.set(0.5, 0.9, 0.7);
-scene.add(warm);
-const cool = new THREE.PointLight(0x6f8db8, 0.8, 4, 2);
-cool.position.set(-0.8, 0.6, -0.6);
-scene.add(cool);
-scene.add(new THREE.AmbientLight(0x222018, 0.9));
+/* 背景墙：别让杯子贴在纯黑上 */
+const wall = new THREE.Mesh(
+  new THREE.PlaneGeometry(3.2, 2.2),
+  new THREE.MeshStandardMaterial({ color: 0x2a211a, roughness: 1 })
+);
+wall.position.set(0, 0.55, -0.62);
+scene.add(wall);
+
+/* 灯：先保证看得见，再谈气氛 */
+scene.add(new THREE.AmbientLight(0xffe9cd, 0.7));
+const key = new THREE.DirectionalLight(0xffcf9c, 1.5);
+key.position.set(0.6, 1.4, 1.0);
+key.castShadow = true;
+scene.add(key);
+const fill = new THREE.DirectionalLight(0x8fa8cf, 0.7);
+fill.position.set(-1.0, 0.8, 0.4);
+scene.add(fill);
+const rim = new THREE.PointLight(0xff9a4a, 2.2, 4, 2);
+rim.position.set(-0.35, 0.55, -0.35);
+scene.add(rim);
 
 const pour = createPour(scene);
 
-const WIDE_POS = new THREE.Vector3(0, 0.42, 0.92);
-const WIDE_LOOK = new THREE.Vector3(0, 0.09, 0);
+const WIDE_POS = new THREE.Vector3(0, 0.60, 1.48);
+const WIDE_LOOK = new THREE.Vector3(0, 0.055, -0.02);
 
 let running = false;
-const fillEl = document.getElementById('fill');
-const bandEl = document.getElementById('band');
-const tickEl = document.getElementById('tick');
-const targetEl = document.getElementById('target');
-const resultEl = document.getElementById('result');
-const againEl = document.getElementById('again');
+let needStart = true;
 
+const el = {
+  fill: document.getElementById('fill'),
+  band: document.getElementById('band'),
+  tick: document.getElementById('tick'),
+  target: document.getElementById('target'),
+  num: document.getElementById('num'),
+  result: document.getElementById('result'),
+  again: document.getElementById('again'),
+  tip: document.getElementById('tip'),
+};
 const CN = ['零','一','二','三','四','五','六','七','八','九','十'];
+const clamp01 = (v) => Math.max(0, Math.min(1, Number.isFinite(v) ? v : 0));
 
 function startRun() {
-  resultEl.classList.remove('on');
-  againEl.classList.remove('on');
+  if (running) return;
+  needStart = false;
+  el.result.classList.remove('on');
+  el.again.classList.remove('on');
   running = true;
   const anchor = new THREE.Vector3(0, 0.004, 0);
   pour.start(anchor, new THREE.Vector3(0, 0, 1)).then((r) => {
     running = false;
     const txt = r.hit ? '稳' : (r.level > r.target ? '满出来了' : '差了半分');
-    resultEl.textContent = txt;
-    resultEl.classList.add('on');
-    againEl.classList.add('on');
-    setTimeout(() => resultEl.classList.remove('on'), 1400);
+    el.result.textContent = txt;
+    el.result.classList.add('on');
+    el.again.classList.add('on');
+    setTimeout(() => el.result.classList.remove('on'), 1500);
   });
 }
 
-function updateMeter() {
+function updateHud() {
   const s = pour.state;
-  const lv = Math.max(0, Math.min(1, s.level));
-  fillEl.style.width = (lv * 100) + '%';
-  const t = s.target * 100;
-  tickEl.style.left = t + '%';
-  const half = s.tol * 100;
-  bandEl.style.left = Math.max(0, t - half) + '%';
-  bandEl.style.width = (half * 2) + '%';
-  targetEl.textContent = CN[Math.round(s.target * 10)] + '分';
+  const lv = clamp01(s.level);
+  const tg = clamp01(s.target);
+  const tol = Number.isFinite(s.tol) ? s.tol : 0.1;
+
+  el.fill.style.width = (lv * 100).toFixed(1) + '%';
+  el.tick.style.left = (tg * 100).toFixed(1) + '%';
+  el.band.style.left = (Math.max(0, tg - tol) * 100).toFixed(1) + '%';
+  el.band.style.width = (Math.min(1, tol * 2) * 100).toFixed(1) + '%';
+  el.target.textContent = CN[Math.round(tg * 10)] + '分';
+  el.num.textContent = `已倒 ${(lv * 100).toFixed(0)}% · 目标 ${(tg * 100).toFixed(0)}%`;
 }
 
 const clock = new THREE.Clock();
@@ -123,31 +147,67 @@ function tick() {
   const dt = Math.min(clock.getDelta(), 0.05);
   if (running) pour.update(dt);
 
-  const k = pour.cine.k;
+  const k = clamp01(pour.cine.k);
   pos.lerpVectors(WIDE_POS, pour.cine.pos, k);
   look.lerpVectors(WIDE_LOOK, pour.cine.look, k);
   camera.position.copy(pos);
   camera.lookAt(look);
 
-  updateMeter();
+  updateHud();
   renderer.render(scene, camera);
   requestAnimationFrame(tick);
 }
 
-renderer.domElement.addEventListener('pointerdown', (e) => { e.preventDefault(); pour.press(); });
-addEventListener('pointerup', () => pour.release());
+function onDown(e) {
+  if (e && e.preventDefault) e.preventDefault();
+  if (needStart) { startRun(); return; }
+  if (!running) return;
+  pour.press();
+}
+function onUp() {
+  if (running) pour.release();
+}
+
+addEventListener('pointerdown', onDown);
+addEventListener('pointerup', onUp);
 addEventListener('keydown', (e) => {
-  if (e.code === 'Space') { e.preventDefault(); pour.press(); }
+  if (e.code === 'Space') { e.preventDefault(); onDown(); }
 });
-addEventListener('keyup', (e) => { if (e.code === 'Space') pour.release(); });
+addEventListener('keyup', (e) => { if (e.code === 'Space') onUp(); });
 addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
 });
-againEl.addEventListener('click', startRun);
+el.again.addEventListener('click', (e) => {
+  e.stopPropagation();
+  needStart = true;
+  startRun();
+});
 
-startRun();
+/* 先停在远景：点一下才开始推镜 */
+updateHud();
+pour.preview(new THREE.Vector3(0, 0.004, 0), new THREE.Vector3(0, 0, 1));
+el.tip.innerHTML = '点一下开始<br>按住鼠标或空格倒酒 · 松手停';
+if (location.hash === '#auto') startRun();
+if (location.hash === '#close') {
+  startRun();
+  for (let i = 0; i < 24; i++) pour.update(0.05);
+}
+if (location.hash === '#pour') {
+  startRun();
+  for (let i = 0; i < 24; i++) pour.update(0.05);
+  pour.press();
+  for (let i = 0; i < 18; i++) pour.update(0.05);
+}
+if (location.hash === '#fill') {
+  startRun();
+  for (let i = 0; i < 24; i++) pour.update(0.05);
+  pour.press();
+  for (let i = 0; i < 26; i++) pour.update(0.05);
+  pour.release();
+  for (let i = 0; i < 6; i++) pour.update(0.05);
+}
 tick();
 </script>
 </body>
