@@ -29,6 +29,7 @@
 ### 文件
 
 - `wuxia-inn/index.html`：整关就这一个文件，**单文件、零依赖、无外链、无 alert/confirm**，`file://` 双击即可运行。
+- `wuxia-inn/endings.md`：六种收尾文案，已按「一页两行以内」分好段，可直接灌进剧情数组。
 
 ### 操作
 
