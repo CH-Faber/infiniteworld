@@ -402,6 +402,13 @@ body.hot { cursor: pointer; }
 
 .again:hover { background: rgba(233, 185, 120, 0.1); }
 
+.next-level {
+  display: inline-block;
+  text-decoration: none;
+  margin-right: 14px;
+  border-color: rgba(233, 185, 120, 0.5);
+}
+
 #footer {
   position: fixed;
   bottom: 16px;

@@ -21,7 +21,8 @@ const TYPES = {
 
 http.createServer((req, res) => {
   const url = decodeURIComponent((req.url || '/').split('?')[0]);
-  const file = path.join(root, url === '/' ? 'index.html' : url);
+  let file = path.join(root, url === '/' ? 'index.html' : url);
+  if (url !== '/' && url.endsWith('/')) file = path.join(file, 'index.html');
   if (!file.startsWith(root)) {
     res.writeHead(403);
     res.end();
