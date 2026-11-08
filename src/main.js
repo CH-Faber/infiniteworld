@@ -13,14 +13,14 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap;
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(52, window.innerWidth / window.innerHeight, 0.1, 60);
+const camera = new THREE.PerspectiveCamera(56, window.innerWidth / window.innerHeight, 0.1, 60);
 
 const world = buildWorld(scene, renderer);
 
 /* ---------- 镜头 ---------- */
 
-const BASE_POS = new THREE.Vector3(0.8, 1.62, 6.2);
-const BASE_LOOK = new THREE.Vector3(1.1, 1.42, -3.6);
+const BASE_POS = new THREE.Vector3(0.8, 1.62, 7.0);
+const BASE_LOOK = new THREE.Vector3(1.1, 1.42, -3.8);
 
 let yaw = 0, pitch = 0;
 let targetYaw = 0, targetPitch = 0;

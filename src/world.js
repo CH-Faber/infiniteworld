@@ -352,7 +352,7 @@ export function buildWorld(scene) {
   const porcelain = new THREE.MeshStandardMaterial({ color: 0xc9c2b0, roughness: 0.42, metalness: 0.08 });
   const teaMat = new THREE.MeshBasicMaterial({ color: 0xb56c2a, transparent: true, opacity: 0.9 });
   const brassMat = new THREE.MeshStandardMaterial({ color: 0x8a6a32, roughness: 0.36, metalness: 0.7 });
-  const clothRed = new THREE.MeshStandardMaterial({ color: 0x6d2117, roughness: 0.92 });
+  const clothRed = new THREE.MeshStandardMaterial({ color: 0x461a13, roughness: 1 });
   const peanutMat = new THREE.MeshStandardMaterial({ color: 0xb98452, roughness: 0.88 });
   const glowPaper = new THREE.MeshBasicMaterial({ color: 0xd9a35c, transparent: true, opacity: 0.5, side: THREE.DoubleSide });
 
@@ -498,13 +498,43 @@ export function buildWorld(scene) {
     }
   });
 
-  /* 楼梯 */
-  for (let i = 0; i < 8; i++) {
-    box(1.35, 0.4, 0.62, woodDark, -6.75, 0.2 + i * 0.4, 7.5 - i * 0.55, root, false);
+  /* 楼梯：整块侧板 + 踏步，做成实心木梯 */
+  {
+    const steps = 8, run = 0.55, rise = 0.4;
+    const shape = new THREE.Shape();
+    shape.moveTo(0, 0);
+    for (let i = 0; i < steps; i++) {
+      shape.lineTo(i * run, (i + 1) * rise);
+      shape.lineTo((i + 1) * run, (i + 1) * rise);
+    }
+    shape.lineTo(steps * run, 0);
+    shape.closePath();
+    const geo = new THREE.ExtrudeGeometry(shape, { depth: 1.42, bevelEnabled: false });
+    geo.translate(0, 0, -0.71);
+    const stair = new THREE.Mesh(geo, woodDark);
+    stair.position.set(-6.75, 0, 7.5);
+    stair.rotation.y = Math.PI / 2;
+    stair.castShadow = true;
+    stair.receiveShadow = true;
+    root.add(stair);
+    meshes.push(stair);
+
+    // 扶手：随坡度倾斜，立柱落在踏步上
+    const slope = Math.atan2(steps * rise, steps * run);
+    const railLen = Math.hypot(steps * run, steps * rise);
+    [-1, 1].forEach((side) => {
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, railLen), wood);
+      rail.position.set(-6.75 + side * 0.66, steps * rise / 2 + 0.92, 7.5 - steps * run / 2);
+      rail.rotation.x = slope;
+      rail.castShadow = true;
+      root.add(rail);
+      for (let i = 0; i < steps; i += 2) {
+        const post = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.9, 0.055), woodDark);
+        post.position.set(-6.75 + side * 0.66, (i + 1) * rise + 0.46, 7.5 - (i + 0.5) * run);
+        root.add(post);
+      }
+    });
   }
-  const handrail = box(0.09, 0.09, 4.9, wood, -6.02, 2.45, 5.6, root, false);
-  handrail.rotation.x = 0.63;
-  [7.3, 5.7, 4.1].forEach((z, i) => box(0.06, 0.55 + i * 0.42, 0.06, woodDark, -6.02, 0.75 + i * 0.42, z, root, false));
 
   /* ---------- 门楼 · 街 ---------- */
 
@@ -529,19 +559,27 @@ export function buildWorld(scene) {
   root.add(plaque);
   box(3.24, 1.34, 0.12, woodDark, 0, 5.12, 8.09, root, false);
 
-  // 门扇敞开
-  [-1, 1].forEach((side) => {
-    const leaf = box(2.2, 3.4, 0.12, woodDark, side * 2.35, 1.7, 8.35, root, false);
-    leaf.rotation.y = side * 0.9;
-    for (let r = 0; r < 3; r++) {
-      for (let c = 0; c < 2; c++) {
-        const stud = new THREE.Mesh(new THREE.SphereGeometry(0.035, 6, 6), brassMat);
-        stud.position.set(side * 2.35 + (c - 0.5) * (side > 0 ? 0.6 : -0.6), 0.9 + r * 0.7, 8.42);
-        root.add(stud);
-      }
-    }
-  });
+  // 门槛 · 门枕石 · 卷起的门帘（门扇卸了，夜里敞着迎客）
   box(7.2, 0.16, 0.34, wood, 0, 0.08, 8.28, root, false);
+  [-3.0, 3.0].forEach((x) => {
+    const block = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.42, 0.6), stone);
+    block.position.set(x, 0.21, 8.3);
+    block.castShadow = true;
+    root.add(block);
+  });
+  const curtain = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.14, 0.14, 6.4, 10, 1, true),
+    new THREE.MeshStandardMaterial({ color: 0x5c2a1c, roughness: 1, side: THREE.DoubleSide })
+  );
+  curtain.rotation.z = Math.PI / 2;
+  curtain.position.set(0, 4.2, 8.24);
+  root.add(curtain);
+  [4.15, 3.9].forEach((y) => {
+    const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 6.6, 6), brassMat);
+    cord.rotation.z = Math.PI / 2;
+    cord.position.set(0, y, 8.24);
+    root.add(cord);
+  });
 
   // 街面
   const street = new THREE.Mesh(new THREE.PlaneGeometry(34, 18), streetMat);
@@ -555,14 +593,17 @@ export function buildWorld(scene) {
   root.add(porch);
 
   // 街对面的铺面剪影
-  const facadeMat = new THREE.MeshStandardMaterial({ color: 0x171b21, roughness: 0.95 });
+  const facadeMat = new THREE.MeshStandardMaterial({ color: 0x39404d, roughness: 0.95 });
+  const facadeTrim = new THREE.MeshStandardMaterial({ color: 0x1b1f27, roughness: 0.95 });
   for (let i = -2; i <= 2; i++) {
     box(6.0, 5.2, 0.4, facadeMat, i * 7, 2.6, 21.5, root, false);
     box(6.0, 0.3, 1.6, roofMat, i * 7, 5.2, 20.9, root, false);
-    for (let k = 0; k < 2; k++) {
-      const pane = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 1.5), glowPaper.clone());
-      pane.material.opacity = 0.25 + Math.random() * 0.2;
-      pane.position.set(i * 7 - 1.6 + k * 3.2, 2.2 + (k % 2) * 0.0, 21.25);
+    box(6.2, 0.16, 0.9, facadeTrim, i * 7, 3.35, 21.1, root, false);
+    box(0.16, 3.2, 0.5, facadeTrim, i * 7 + 2.6, 1.6, 21.2, root, false);
+    for (let k = 0; k < 3; k++) {
+      const pane = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.5), glowPaper.clone());
+      pane.material.opacity = 0.42 + Math.random() * 0.3;
+      pane.position.set(i * 7 - 1.8 + k * 1.8, 2.2, 21.28);
       pane.rotation.y = Math.PI;
       root.add(pane);
     }
@@ -1252,8 +1293,8 @@ export function buildWorld(scene) {
 
   // 炭炉边暖手的酒客
   makePerson({ x: -1.7, z: 3.94, rot: -1.12, robe: 0x4b4438, hat: 'cone', seated: false });
-  // 门口避雨的人
-  makePerson({ x: -1.35, z: 7.55, rot: 0.2, robe: 0x3f4349, hat: 'cone', seated: false });
+  // 门口避雨的人（站在檐下，不挡正门）
+  makePerson({ x: -5.4, z: 9.5, rot: 0.55, robe: 0x3f4349, hat: 'cone', seated: false });
 
   // 门边的伞桶
   const umbrella = new THREE.Group();
@@ -1270,10 +1311,10 @@ export function buildWorld(scene) {
     stick.rotation.z = Math.cos(a) * 0.18;
     stick.rotation.x = Math.sin(a) * 0.18;
     umbrella.add(stick);
-    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.22, 8), new THREE.MeshStandardMaterial({ color: 0x6a4a2c, roughness: 0.95 }));
-    tip.position.set(Math.cos(a) * 0.23, 1.35, Math.sin(a) * 0.23);
-    tip.rotation.z = Math.cos(a) * 0.18;
-    tip.rotation.x = Math.sin(a) * 0.18;
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.86, 8), new THREE.MeshStandardMaterial({ color: 0x4a3626, roughness: 0.96 }));
+    tip.position.set(Math.cos(a) * 0.13, 1.16, Math.sin(a) * 0.13);
+    tip.rotation.z = Math.cos(a) * 0.13;
+    tip.rotation.x = Math.sin(a) * 0.13;
     umbrella.add(tip);
   }
 
@@ -1286,6 +1327,15 @@ export function buildWorld(scene) {
     const p = box(1.06, 2.35, 0.06, screenMat, -4.8 + i * 1.05, 1.5, -4.36, root, false);
     p.rotation.y = i * 0.2;
     p.userData.hotspot = 'teller';
+    // 每扇加木框，别让它看起来像一块发光的墙
+    const frame = new THREE.Group();
+    frame.position.set(-4.8 + i * 1.05, 1.5, -4.37);
+    frame.rotation.y = i * 0.2;
+    root.add(frame);
+    box(1.14, 0.07, 0.08, woodDark, 0, 1.175, 0, frame, false);
+    box(1.14, 0.07, 0.08, woodDark, 0, -1.175, 0, frame, false);
+    [-0.53, 0.53].forEach((sx) => box(0.07, 2.35, 0.08, woodDark, sx, 0, 0, frame, false));
+    box(1.1, 0.035, 0.06, woodDark, 0, 0.2, 0, frame, false);
   }
   box(3.4, 0.12, 0.12, woodDark, -4.8, 2.72, -4.36, root, false);
   const teller = makePerson({ x: -4.8, y: 0.3, z: -3.3, rot: 0, robe: 0x6d6354, hat: 'bun', seated: false, hotspot: 'teller' });
@@ -1484,6 +1534,21 @@ export function buildWorld(scene) {
   makeLantern(0, 3.35, -12.35, 0.75);
   makeLantern(-8.3, 3.4, 2.0, 0.7, true, 16);
 
+  // 门外街边的两盏灯，把街道从黑里拉出来
+  makeLantern(-3.4, 3.2, 9.4, 0.8, true, 16);
+  makeLantern(3.4, 3.2, 9.4, 0.8, true, 16);
+  const streetFill = new THREE.PointLight(0xffb072, 40, 30, 2);
+  streetFill.position.set(0, 2.4, 12.0);
+  scene.add(streetFill);
+  const streetFill2 = new THREE.PointLight(0x8fa4c4, 18, 26, 2);
+  streetFill2.position.set(-4, 4.2, 17.0);
+  scene.add(streetFill2);
+
+  // 湿石板上不额外贴反光片，避免出现“黑洞”
+
+  /* 街道反光靠灯光，不再贴平面片 */
+
+
   /* ---------- 灯光 ---------- */
 
   scene.add(new THREE.HemisphereLight(0x43536b, 0x2b1c0d, 0.92));
@@ -1507,8 +1572,8 @@ export function buildWorld(scene) {
   candleLight.position.set(8.2, 1.35, 2.55);
   scene.add(candleLight);
 
-  const yardLight = new THREE.PointLight(0x9db4d0, 7, 14, 2);
-  yardLight.position.set(0, 3.6, -8.6);
+  const yardLight = new THREE.PointLight(0xa8bed8, 10, 16, 2);
+  yardLight.position.set(0, 3.4, -8.0);
   scene.add(yardLight);
 
   const tableLight = new THREE.PointLight(0xffa860, 10, 8, 2);
@@ -1639,7 +1704,7 @@ export function buildWorld(scene) {
   waiter.add(wt);
 
   const waiterPath = [
-    [1.8, 6.9], [3.2, 5.0], [3.5, 2.6], [3.0, 0.6], [1.9, -1.0], [-0.3, -1.6], [-1.0, 0.6], [-1.0, 3.0], [-0.4, 5.0], [0.6, 6.4],
+    [2.9, 3.4], [3.6, 2.2], [3.2, 0.4], [1.9, -1.4], [-0.9, -1.9], [-2.7, -0.5], [-2.9, 1.6], [-2.5, 3.1], [-1.2, 3.6], [1.1, 3.5],
   ];
   let waitSeg = 0, waitT = 0;
 
