@@ -8,10 +8,10 @@
   html,body{margin:0;height:100%;background:#0d0a09;overflow:hidden;
     font-family:"Songti SC","STSong",serif;color:#e9d7b6;user-select:none}
   canvas{display:block}
-  #hud{position:fixed;left:50%;top:6%;transform:translateX(-50%);text-align:center;
-    letter-spacing:.2em;font-size:15px;pointer-events:none}
+  #hud{position:fixed;left:0;right:0;top:6%;display:flex;flex-direction:column;align-items:center;
+    text-align:center;letter-spacing:.18em;font-size:clamp(11px,2.4vmin,16px);pointer-events:none}
   #hud b{color:#ffcf8a;font-weight:400}
-  #meter{margin:12px auto 0;width:260px;height:6px;background:rgba(255,207,138,.14);
+  #meter{margin:10px auto 0;width:min(260px,72vw);height:6px;background:rgba(255,207,138,.14);
     position:relative;border-radius:3px;overflow:hidden}
   #band{position:absolute;top:0;height:100%;background:rgba(143,208,255,.30)}
   #fill{position:absolute;left:0;top:0;height:100%;width:0;background:#ffcf8a}
@@ -35,7 +35,7 @@
   <div id="meter"><div id="band"></div><div id="fill"></div><div id="tick"></div></div>
   <div id="num">0% / 目标 0%</div>
 </div>
-<div id="tip">按住鼠标或空格 · 松手停</div>
+<div id="tip">按住鼠标或空格 · 松手停<br><span id="vp" style="font-size:11px;opacity:.45"></span></div>
 <div id="result"></div>
 <button id="again">再倒一杯</button>
 
@@ -65,6 +65,15 @@ const table = new THREE.Mesh(
 table.position.set(0, -0.035, -0.30);
 table.receiveShadow = true;
 scene.add(table);
+
+/* 地面：桌子下面别是虚空 */
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(8, 8),
+  new THREE.MeshStandardMaterial({ color: 0x1c1611, roughness: 1 })
+);
+ground.rotation.x = -Math.PI / 2;
+ground.position.y = -0.72;
+scene.add(ground);
 
 /* 背景墙：别让杯子贴在纯黑上 */
 const wall = new THREE.Mesh(
@@ -143,7 +152,17 @@ const clock = new THREE.Clock();
 const pos = new THREE.Vector3().copy(WIDE_POS);
 const look = new THREE.Vector3().copy(WIDE_LOOK);
 
+function fitCamera() {
+  const vp = document.getElementById('vp');
+  if (vp) vp.textContent = innerWidth + '×' + innerHeight + ' · dpr ' + devicePixelRatio + ' · fov ' + camera.fov.toFixed(0) + '°';
+  const aspect = innerWidth / Math.max(1, innerHeight);
+  camera.fov = Math.max(44, Math.min(86, 44 * (1.6 / aspect)));
+  camera.aspect = aspect;
+  camera.updateProjectionMatrix();
+}
+
 function tick() {
+  fitCamera();
   const dt = Math.min(clock.getDelta(), 0.05);
   if (running) pour.update(dt);
 
@@ -175,8 +194,7 @@ addEventListener('keydown', (e) => {
 });
 addEventListener('keyup', (e) => { if (e.code === 'Space') onUp(); });
 addEventListener('resize', () => {
-  camera.aspect = innerWidth / innerHeight;
-  camera.updateProjectionMatrix();
+  fitCamera();
   renderer.setSize(innerWidth, innerHeight);
 });
 el.again.addEventListener('click', (e) => {
