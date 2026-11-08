@@ -364,7 +364,7 @@ document.getElementById('sound').onclick = (e) => {
   e.stopPropagation();
   startAudio();
   muted = !muted;
-  e.currentTarget.textContent = muted ? '雨声 · 关' : '雨声 · 开';
+  e.currentTarget.textContent = muted ? '风雪 · 关' : '风雪 · 开';
   if (rainGain && audioCtx) {
     rainGain.gain.linearRampToValueAtTime(muted ? 0.0 : 0.085, audioCtx.currentTime + 0.4);
   }

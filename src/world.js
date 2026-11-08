@@ -608,7 +608,7 @@ export function buildWorld(scene) {
       root.add(pane);
     }
   }
-  // 雨中行人
+  // 雪中行人
   [[-4.5, 12.5, 0.4], [3.2, 15.0, -0.2], [-9.0, 17.5, 0.9]].forEach(([x, z, r]) => {
     const p = new THREE.Group();
     p.position.set(x, 0, z);
@@ -1293,7 +1293,7 @@ export function buildWorld(scene) {
 
   // 炭炉边暖手的酒客
   makePerson({ x: -1.7, z: 3.94, rot: -1.12, robe: 0x4b4438, hat: 'cone', seated: false });
-  // 门口避雨的人（站在檐下，不挡正门）
+  // 门口避雪的人（站在檐下，不挡正门）
   makePerson({ x: -5.4, z: 9.5, rot: 0.55, robe: 0x3f4349, hat: 'cone', seated: false });
 
   // 门边的伞桶
@@ -1592,7 +1592,7 @@ export function buildWorld(scene) {
   tableLightC.position.set(-0.6, 2.0, -2.9);
   scene.add(tableLightC);
 
-  /* ---------- 浮尘 · 雨 ---------- */
+  /* ---------- 浮尘 · 雪 ---------- */
 
   const dustGeo = new THREE.BufferGeometry();
   const dustPos = new Float32Array(280 * 3);
@@ -1608,22 +1608,30 @@ export function buildWorld(scene) {
   }));
   root.add(dust);
 
-  // 雨：街与后院
-  const drops = [];
-  const rainGeo = new THREE.BufferGeometry();
-  const rainPos = new Float32Array(900 * 6);
+  // 雪：街与后院（慢落、横飘；原来那套雨线改成了絮点）
+  const flakes = [];
+  const snowGeo = new THREE.BufferGeometry();
+  const snowPos = new Float32Array(900 * 3);
   for (let i = 0; i < 900; i++) {
     const inYard = i < 360;
     const x = inYard ? (Math.random() - 0.5) * 12 : (Math.random() - 0.5) * 30;
     const z = inYard ? -4.8 - Math.random() * 8 : 9.2 + Math.random() * 13;
-    drops.push({ x, z, y: Math.random() * 8, speed: 7 + Math.random() * 6, len: 0.3 + Math.random() * 0.45 });
+    flakes.push({
+      x, z, y: Math.random() * 8,
+      speed: 0.45 + Math.random() * 0.85,
+      drift: Math.random() * 6.28,
+      amp: 0.15 + Math.random() * 0.45,
+      inYard,
+    });
   }
-  rainGeo.setAttribute('position', new THREE.BufferAttribute(rainPos, 3));
-  const rain = new THREE.LineSegments(rainGeo, new THREE.LineBasicMaterial({
-    color: 0x9db4cd, transparent: true, opacity: 0.2, blending: THREE.AdditiveBlending, depthWrite: false,
+  snowGeo.setAttribute('position', new THREE.BufferAttribute(snowPos, 3));
+  const snowFlakeTex = softTexture('rgba(240,246,255,0.95)');
+  const snow = new THREE.Points(snowGeo, new THREE.PointsMaterial({
+    map: snowFlakeTex, color: 0xe8f0fb, size: 0.075,
+    transparent: true, opacity: 0.85, depthWrite: false, sizeAttenuation: true,
   }));
-  rain.frustumCulled = false;
-  root.add(rain);
+  snow.frustumCulled = false;
+  root.add(snow);
 
   // 蒸汽
   const steamMap = softTexture('rgba(220,220,215,0.5)');
@@ -1864,17 +1872,19 @@ export function buildWorld(scene) {
     waiter.rotation.y = ang;
     waiter.position.y = Math.abs(Math.sin(t * 4)) * 0.02;
 
-    // 雨
-    const rp = rain.geometry.attributes.position;
-    for (let i = 0; i < drops.length; i++) {
-      const d = drops[i];
-      d.y -= d.speed * dt;
-      if (d.y < -0.2) d.y = 8 + Math.random() * 2;
-      const idx = i * 2;
-      rp.setXYZ(idx, d.x, d.y, d.z);
-      rp.setXYZ(idx + 1, d.x + 0.12, d.y + d.len, d.z + 0.04);
+    // 雪
+    const sp = snow.geometry.attributes.position;
+    for (let i = 0; i < flakes.length; i++) {
+      const f = flakes[i];
+      f.y -= f.speed * dt;
+      if (f.y < -0.2) {
+        f.y = 8 + Math.random() * 2;
+        f.x = (Math.random() - 0.5) * (f.inYard ? 12 : 30);
+        f.z = f.inYard ? -4.8 - Math.random() * 8 : 9.2 + Math.random() * 13;
+      }
+      sp.setXYZ(i, f.x + Math.sin(t * 0.6 + f.drift) * f.amp, f.y, f.z);
     }
-    rp.needsUpdate = true;
+    sp.needsUpdate = true;
 
     // 蒸汽
     for (const s of steams) {

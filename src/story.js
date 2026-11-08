@@ -6,6 +6,9 @@ const RELIC_TEXT = {
 
 const LEGACY = { paper: 'cup', ticket: 'portrait', coin: 'plaque' };
 
+/* 平台存档里能对上 3D 实物的，只有这三样 */
+const RELIC_VIS = { cup: true, portrait: true, plaque: true };
+
 const CN = ['零', '一', '二', '三', '四', '五'];
 
 const MAIN = ['keeper', 'captain', 'hunter', 'senior'];
@@ -33,7 +36,7 @@ const AMBIENT = {
 
 const CHATTER = [
   '邻桌压着嗓子：「容颜城的事，别在这楼里提。」',
-  '后厨灶火噼啪响了一声，油香混着雨气飘出来。',
+  '后厨灶火噼啪响了一声，油香混着雪气飘出来。',
   '楼上的窗纸晃了晃，有个人影一直没动。',
   '街口的更夫敲了三下梆子。',
   '说书人的嗓子又亮起来，唱到「一张脸换一条命」。',
@@ -57,14 +60,36 @@ export function createStory(ui, stage) {
     if (delta > 0) ui.toast(note);
   }
 
-  function readRelic() {
-    let raw = null;
+  /* 平台存档：有桥就走桥，没有桥就安静降级（本地双击也能玩） */
+  function readSave() {
     try {
-      raw = localStorage.getItem('tingyulou.relic2') || localStorage.getItem('tingyulou.relic');
-    } catch (e) { return null; }
-    if (!raw) return null;
-    const id = LEGACY[raw] || raw;
-    return RELIC_TEXT[id] ? id : null;
+      if (typeof WL !== 'undefined' && WL && typeof WL.readSave === 'function') {
+        const s = WL.readSave();
+        if (s && typeof s === 'object') return s;
+      }
+    } catch (e) { /* 没有平台桥 */ }
+    return {};
+  }
+
+  /* 上一关带来的东西：只从存档里取，不凭空写 */
+  function readCarry(save) {
+    const items = Array.isArray(save.items) ? save.items : [];
+    for (let i = items.length - 1; i >= 0; i--) {
+      const raw = items[i] || {};
+      const key = LEGACY[String(raw.id || '')] || String(raw.id || '');
+      return {
+        name: raw.name || RELIC_TEXT[key] || '一件说不清来历的东西',
+        visual: RELIC_VIS[key] ? key : null,
+      };
+    }
+    try {
+      const raw = localStorage.getItem('tingyulou.relic2') || localStorage.getItem('tingyulou.relic');
+      if (raw) {
+        const key = LEGACY[raw] || raw;
+        if (RELIC_TEXT[key]) return { name: RELIC_TEXT[key], visual: RELIC_VIS[key] ? key : null };
+      }
+    } catch (e) { /* 隐私模式写不进去 */ }
+    return null;
   }
 
   /* ---------- 开场 ---------- */
@@ -73,19 +98,27 @@ export function createStory(ui, stage) {
     await ui.intro();
     stage.focus(null);
 
-    await ui.say('旁白', '上一个副本叫「容颜」。\n你们杀穿了那座城，最后一具尸体倒下时，脸皮自己脱了下来——\n薄得透光，还带着体温。');
-    await ui.say('旁白', '你没舍得扔。它跟着你穿过雨，落进了这一世。');
+    const incoming = readSave();
+    const hook = String(incoming.exit_hook || '').trim();
+    if (hook) {
+      await ui.say('旁白', `上一关留下的最后一句话——\n「${hook}」`);
+    } else {
+      await ui.say('旁白', '你从上一座世界走出来的时候，身后什么也没留下。');
+    }
+
     await ui.say('旁白', '再睁眼，你是个店小二。\n肩上搭一条发灰的抹布，手背上一块旧烫伤。\n柜台上的木牌写着：阿七。');
     await ui.say('铜镜里', '低头看这双手。\n指节粗，虎口却有握刀的茧。\n不是你练过刀，是这张皮原来的主人练过。');
-    await ui.say('旁白', '门外的雨里有三种脚步声：官靴、快靴，还有一把伞。\n他们都在找那张脸。');
+    await ui.say('旁白', '门外的雪里有三种脚步声：官靴、快靴，还有一把伞。\n他们都在找这具身体。');
     await ui.say('老板娘', '「阿七，发什么愣？」\n她把抹布往你肩上一搭，「四桌客人等着添茶。手脚轻些，别多看，别多问。」');
     await ui.say('旁白', '于是你端起茶壶，走进这一堂人。');
 
-    const relic = readRelic();
-    if (relic) {
-      ui.showRelic(relic);
-      await ui.say('旁白', `柜台角上压着一件不该在这楼里的东西——\n${RELIC_TEXT[relic]}。\n老板娘顺着你的眼神看了一眼，什么也没说。`);
+    const carry = readCarry(incoming);
+    if (carry) {
+      if (carry.visual) ui.showRelic(carry.visual);
+      await ui.say('旁白', `柜台角上摆着一件不该在这楼里的东西——\n${carry.name}。\n老板娘顺着你的眼神看了一眼，什么也没说。`);
       give('suspicion', 1, '疑心 加一');
+    } else {
+      await ui.say('旁白', '你身上没有一样东西是别处带来的。\n空着手，也得坐进来。');
     }
 
     await ui.say('旁白', '四桌客人，四种人等。\n茶壶是热的，眼睛是凉的。');
@@ -149,7 +182,7 @@ export function createStory(ui, stage) {
   }
 
   async function serveCaptain() {
-    await ui.say('旁白', '皂衣客把扣着的茶碗翻过来，推到你手边。\n刀靠桌腿，鞘上还挂着雨水。');
+    await ui.say('旁白', '皂衣客把扣着的茶碗翻过来，推到你手边。\n刀靠桌腿，鞘上还覆着一层雪。');
     await ui.say('捕快', '「添满。」他只说这两个字。');
     await ui.say('旁白', '他袖口露出半张海捕文书。\n画上那张脸——是你在容颜城借过的那一张。');
 
@@ -267,7 +300,7 @@ export function createStory(ui, stage) {
     stage.knock();
     await wait(1200);
 
-    await ui.say('旁白', '第四盏茶添满的时候，堂里忽然静了。\n说书人的扇子停在半空，连雨声都像停了。');
+    await ui.say('旁白', '第四盏茶添满的时候，堂里忽然静了。\n说书人的扇子停在半空，连窗外的雪都像停了。');
     await ui.say('旁白', '皂衣客站起来，把刀横在桌上。\n戴斗笠的掀开榜文。白衣客解开了裹剑的布。');
     await ui.say('旁白', '三张桌子，三双眼睛，都在你身上。\n柜台后头，老板娘慢慢把抹布叠好。');
     await ui.say('老板娘', '「阿七，灶膛还热着。」');
@@ -286,7 +319,7 @@ export function createStory(ui, stage) {
       leave('cup');
       await ui.end({
         title: '你掀了茶壶',
-        text: '热茶泼在皂衣客的刀上，白汽腾起来。\n你从后厨的门缝里挤出去，灶膛的火光舔了一下你的后脊。\n\n雨在巷子里等了你很久。\n你跑了三条街，才想起来——这一世，你连名字都是借来的。\n\n第二天，听雨楼照常开门。\n柜台角上多了一只倒扣的茶碗，谁也没收走。',
+        text: '热茶泼在皂衣客的刀上，白汽腾起来。\n你从后厨的门缝里挤出去，灶膛的火光舔了一下你的后脊。\n\n雪在巷子里等了你很久。\n你跑了三条街，才想起来——这一世，你连名字都是借来的。\n\n第二天，听雨楼照常开门。\n柜台角上多了一只倒扣的茶碗，谁也没收走。',
         item: '一只倒扣着的茶碗',
         hook: '下一队进门时，会先看见那只扣着的茶碗。',
       });
@@ -302,7 +335,7 @@ export function createStory(ui, stage) {
       leave('plaque');
       await ui.end({
         title: '你跟着师兄出了门',
-        text: '你把茶壶放稳，解下抹布，跟师兄走进雨里。\n捕头和揭榜客没有追。他们只是看着，\n像在看一件被收进箱底的旧物。\n\n山门的钟响了三下。师父在殿里等你，案上摆着一碗还冒热气的茶。\n你跪下的时候，忽然想起——已经很久没人给你倒过茶了。',
+        text: '你把茶壶放稳，解下抹布，跟师兄走进雪里。\n捕头和揭榜客没有追。他们只是看着，\n像在看一件被收进箱底的旧物。\n\n山门的钟响了三下。师父在殿里等你，案上摆着一碗还冒热气的茶。\n你跪下的时候，忽然想起——已经很久没人给你倒过茶了。',
         item: '一枚清源派的旧门牌',
         hook: '门牌搁在柜台缝里。下一队会摸到它，然后听见有人在门外叫「师弟」。',
       });
@@ -332,9 +365,9 @@ const REPEAT = {
   captain: '皂衣客把碗又扣了回去。刀还在桌边。',
   hunter: '揭榜客在看榜文，没抬头。你的影子落在他纸上。',
   senior: '白衣客面前那只杯子，还是空的。他没再看你。',
-  teller: '说书人一展扇子，接着唱下一回。\n这回唱的是雨夜、客栈，和一个端茶的人。',
+  teller: '说书人一展扇子，接着唱下一回。\n这回唱的是雪夜、客栈，和一个端茶的人。',
   tableE: '两个行商的账还没算完。茶还满着。',
-  tableF: '两个老酒客换了话题，说今年的雨真长。',
+  tableF: '两个老酒客换了话题，说今年的雪真大。',
   tableG: '戴斗笠的把手从桌下收了回去。茶还满着。',
   tableH: '孩子醒了，正在揉眼睛。茶还温着。',
   tableI: '佩刀的两个人还在看那张地图，压着嗓子争一个地名。',
