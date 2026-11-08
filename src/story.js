@@ -215,7 +215,7 @@ export function createStory(ui, stage) {
 
     ui.hidePanel();
     busy = false;
-    ui.showHint('先给三桌客人上酒 · 微光亮起时点它');
+    ui.showHint('先去柜台找老板娘');
     ui.toast('柜台在右手边 · 老板娘在等你');
   }
 
@@ -223,6 +223,17 @@ export function createStory(ui, stage) {
 
   async function inspect(id) {
     if (busy || ended || !id) return;
+    const needsKeeper = WINE[id] && !seen.has('keeper');
+    const needsOthers = id === 'senior' && (!seen.has('captain') || !seen.has('hunter'));
+    if (needsKeeper || needsOthers) {
+      busy = true;
+      await ui.say('老板娘', needsKeeper
+        ? '「先过来。这三桌人是谁，你得先知道。」'
+        : '「先给捕头和刀客上酒。西边那位，最后再去。」');
+      ui.hidePanel();
+      busy = false;
+      return;
+    }
     busy = true;
     ui.focusOn(id);
     if (!WINE[id]) stage.pour(id);
@@ -265,6 +276,7 @@ export function createStory(ui, stage) {
       await ui.say('老板娘', '「去。」她把算盘珠子拨了一下，「手别抖。」');
       give('silver', 1, '赏钱 加一');
     }
+    ui.showHint('先给捕快和刀客上酒 · 白衣客最后再去');
   }
 
   /* 一桌酒：点桌 → 客人报分 → 推镜 → 按住倒 → 松手判 → 拉回 */
@@ -353,7 +365,7 @@ export function createStory(ui, stage) {
     const left = 3 - state.cups;
     await ui.say('老板娘', KEEPER_AFTER[state.cups - 1]);
     ui.toast(`第${CN[state.cups]}杯 · 还差${CN[left]}桌`);
-    ui.showHint(`还有${CN[left]}桌等着上酒`);
+    ui.showHint(state.cups === 2 ? '最后去西边 · 给白衣客上酒' : '先给捕快和刀客上酒 · 白衣客最后再去');
   }
 
   /* ---------- 终局：按洒了几杯走三个版本 ---------- */
