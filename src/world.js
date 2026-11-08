@@ -1931,8 +1931,52 @@ export function buildWorld(scene) {
     pos.needsUpdate = true;
   }
 
+  /* ---------- 玩家可行走面与碰撞 ---------- */
+  const obstacles = [
+    { minX: -9.2, maxX: -8.65, minZ: -4.6, maxZ: 8.25 },
+    { minX: 8.65, maxX: 9.2, minZ: -4.6, maxZ: 8.25 },
+    { minX: -9.2, maxX: 9.2, minZ: -4.9, maxZ: -4.45 },
+    { minX: 7.35, maxX: 8.7, minZ: 0.95, maxZ: 4.05 },
+    { minX: -4.8, maxX: -2.6, minZ: 5.3, maxZ: 7.1 },
+    { minX: -2.9, maxX: -0.7, minZ: -2.8, maxZ: -1.0 },
+    { minX: 3.1, maxX: 5.1, minZ: 3.15, maxZ: 4.7 },
+    { minX: 5.2, maxX: 7.0, minZ: -3.9, maxZ: -2.1 },
+    { minX: 0.8, maxX: 3.0, minZ: -3.8, maxZ: -2.2 },
+    { minX: -7.65, maxX: -5.85, minZ: 6.85, maxZ: 8.25 },
+  ];
+  const stair = { minX: -7.5, maxX: -6.0, minZ: 3.1, maxZ: 7.55, rise: 3.2 };
+  const floorBounds = { minX: -8.55, maxX: 8.55, minZ: -4.1, maxZ: 7.85 };
+  const circleHits = (x, z, r, b) => {
+    const qx = Math.max(b.minX, Math.min(x, b.maxX));
+    const qz = Math.max(b.minZ, Math.min(z, b.maxZ));
+    return (x - qx) ** 2 + (z - qz) ** 2 < r * r;
+  };
+  function getGroundHeight(x, z, floor = 0) {
+    if (x >= stair.minX && x <= stair.maxX && z >= stair.minZ && z <= stair.maxZ) {
+      return THREE.MathUtils.clamp((stair.maxZ - z) / (stair.maxZ - stair.minZ) * stair.rise, 0, stair.rise);
+    }
+    if (floor === 1 && Math.abs(x) >= 7.0 && Math.abs(x) <= 8.2 && z >= -4.0 && z <= 7.7) return 3.28;
+    return 0;
+  }
+  function resolvePlayerMove(position, delta, radius = 0.32, state = { floor: 0 }) {
+    const next = position.clone();
+    const tryMove = (axis, amount) => {
+      next[axis] += amount;
+      const onStair = next.x >= stair.minX - radius && next.x <= stair.maxX + radius && next.z >= stair.minZ - radius && next.z <= stair.maxZ + radius;
+      const upper = state.floor === 1 && Math.abs(next.x) >= 7.0 - radius && Math.abs(next.x) <= 8.2 + radius && next.z >= -4.0 && next.z <= 7.7;
+      const out = next.x < floorBounds.minX + radius || next.x > floorBounds.maxX - radius || next.z < floorBounds.minZ + radius || next.z > floorBounds.maxZ - radius;
+      if (out || (!onStair && !upper && obstacles.some((b) => circleHits(next.x, next.z, radius, b)))) next[axis] -= amount;
+    };
+    tryMove('x', delta.x); tryMove('z', delta.z);
+    const onStair = next.x >= stair.minX - radius && next.x <= stair.maxX + radius && next.z >= stair.minZ - radius && next.z <= stair.maxZ + radius;
+    if (onStair) state.floor = getGroundHeight(next.x, next.z, state.floor) > 1.65 ? 1 : 0;
+    else if (state.floor === 1 && !(Math.abs(next.x) >= 7.0 - radius && Math.abs(next.x) <= 8.2 + radius && next.z >= -4.0 && next.z <= 7.7)) state.floor = 0;
+    next.y = getGroundHeight(next.x, next.z, state.floor);
+    return next;
+  }
+
   return {
     root, update, hotspots, raycastables, candleLight,
-    showRelic, setGlow, pourTea,
+    showRelic, setGlow, pourTea, getGroundHeight, resolvePlayerMove,
   };
 }

@@ -20,12 +20,11 @@ const world = buildWorld(scene, renderer);
 
 /* ---------- 镜头 ---------- */
 
-const BASE_POS = new THREE.Vector3(0.8, 1.62, 7.0);
-const BASE_LOOK = new THREE.Vector3(1.1, 1.42, -3.8);
-
+const player = { position: new THREE.Vector3(0.8, 0, 7.0), floor: 0, radius: 0.32, eyeHeight: 1.62 };
 let yaw = 0, pitch = 0;
 let targetYaw = 0, targetPitch = 0;
-let pointerX = 0.5, pointerY = 0.5;
+const keys = new Set();
+let pointerLocked = false;
 let hoveredId = null;
 let shake = 0;
 let flash = 0;
@@ -83,71 +82,45 @@ const MISS_LINES = ['这一处，只有潮气和油烟。', '茶客们各说各�
 let lastMissAt = 0;
 
 window.addEventListener('pointermove', (e) => {
-  pointerX = e.clientX / window.innerWidth;
-  pointerY = e.clientY / window.innerHeight;
-
   tagEl.style.transform = `translate(${e.clientX + 18}px, ${e.clientY + 16}px)`;
-
-  if (pointerDownAt && !dragging) {
-    const dx = e.clientX - pointerDownAt.x;
-    const dy = e.clientY - pointerDownAt.y;
-    if (Math.hypot(dx, dy) > 6) dragging = true;
+  if (pointerLocked) {
+    targetYaw = THREE.MathUtils.clamp(targetYaw - e.movementX * 0.0022, -3.05, 3.05);
+    targetPitch = THREE.MathUtils.clamp(targetPitch - e.movementY * 0.0016, -0.8, 0.55);
+    return;
   }
-  if (dragging && pointerDownAt) {
-    targetYaw = THREE.MathUtils.clamp(targetYaw - (e.clientX - pointerDownAt.x) * 0.0022, -3.05, 3.05);
-    targetPitch = THREE.MathUtils.clamp(targetPitch + (e.clientY - pointerDownAt.y) * 0.0016, -0.22, 0.3);
-    pointerDownAt = { x: e.clientX, y: e.clientY };
-  }
-
   if (story.busy) { tagEl.classList.remove('on'); document.body.classList.remove('hot'); return; }
-  if (dragging) return;
-
   const id = pickHotspot(e.clientX, e.clientY);
   if (id && id !== hoveredId) {
     const hs = focusMap[id];
     tagEl.textContent = hs ? hs.label : '';
-    tagEl.classList.add('on');
-    document.body.classList.add('hot');
+    tagEl.classList.add('on'); document.body.classList.add('hot');
   } else if (!id) {
-    tagEl.classList.remove('on');
-    document.body.classList.remove('hot');
+    tagEl.classList.remove('on'); document.body.classList.remove('hot');
   }
   hoveredId = id;
 });
 
-window.addEventListener('pointerdown', (e) => {
-  pointerDownAt = { x: e.clientX, y: e.clientY };
-  dragging = false;
+canvas.addEventListener('click', () => {
   startAudio();
+  if (!story.busy && !pointerLocked && canvas.requestPointerLock) canvas.requestPointerLock();
 });
+document.addEventListener('pointerlockchange', () => {
+  pointerLocked = document.pointerLockElement === canvas;
+  document.body.classList.toggle('locked', pointerLocked);
+  document.getElementById('lock-state').textContent = pointerLocked ? '鼠标 · 已锁定' : '点击画面锁定鼠标';
+});
+window.addEventListener('keydown', (e) => { if (/^[wasd]$/i.test(e.key)) { keys.add(e.key.toLowerCase()); e.preventDefault(); } });
+window.addEventListener('keyup', (e) => { keys.delete(e.key.toLowerCase()); });
+window.addEventListener('blur', () => keys.clear());
 
+window.addEventListener('pointerdown', (e) => { pointerDownAt = { x: e.clientX, y: e.clientY }; startAudio(); });
 window.addEventListener('pointerup', (e) => {
-  const wasDrag = dragging;
   pointerDownAt = null;
-  dragging = false;
-  if (wasDrag) return;
-  if (story.busy) return;
+  if (pointerLocked || story.busy) return;
   const id = pickHotspot(e.clientX, e.clientY);
-  if (id) {
-    hintEl.classList.add('gone');
-    world.setGlow(id, false);
-    story.inspect(id);
-    return;
-  }
-  // 点到了东西、但不是可交互物件：给一句反馈，别让人以为页面死了
-  if (pickAnyObject(e.clientX, e.clientY)) {
-    const t = performance.now();
-    if (t - lastMissAt > 2200) {
-      lastMissAt = t;
-      toast(MISS_LINES[Math.floor(Math.random() * MISS_LINES.length)]);
-    }
-  }
+  if (id) { hintEl.classList.add('gone'); world.setGlow(id, false); story.inspect(id); }
 });
-
-window.addEventListener('pointerleave', () => {
-  dragging = false;
-  pointerDownAt = null;
-});
+window.addEventListener('pointerleave', () => { pointerDownAt = null; });
 
 // 键盘推进：空格 / 回车继续，1~3 选择选项
 window.addEventListener('keydown', (e) => {
@@ -403,6 +376,7 @@ function sfxPour() {
 const tmpPos = new THREE.Vector3();
 const tmpLook = new THREE.Vector3();
 const lookOffset = new THREE.Vector3();
+const move = new THREE.Vector3();
 const euler = new THREE.Euler(0, 0, 0, 'YXZ');
 
 let lastTime = performance.now();
@@ -415,53 +389,41 @@ function tick() {
   elapsed += dt;
   const t = elapsed;
 
-  world.update(dt);
-
-  // 拖拽后保留视角，极慢回中
   targetYaw *= 0.999;
   targetPitch *= 0.999;
   yaw += (targetYaw - yaw) * 0.12;
   pitch += (targetPitch - pitch) * 0.12;
+  if (!story.busy && !activeFocus) {
+    move.set(0, 0, 0);
+    if (keys.has('w')) move.z -= 1;
+    if (keys.has('s')) move.z += 1;
+    if (keys.has('a')) move.x -= 1;
+    if (keys.has('d')) move.x += 1;
+    if (move.lengthSq()) {
+      move.normalize().applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw).multiplyScalar(dt * 3.2);
+      const next = world.resolvePlayerMove(player.position, move, player.radius, player);
+      player.position.copy(next);
+    }
+  }
+  world.update(dt);
 
-  const px = (pointerX - 0.5) * 2;
-  const py = (pointerY - 0.5) * 2;
-
-  lookOffset.copy(BASE_LOOK).sub(BASE_POS);
   euler.set(pitch, yaw, 0);
-  lookOffset.applyEuler(euler);
-
+  lookOffset.set(0, 0, -4).applyEuler(euler);
   if (activeFocus) {
     const hs = focusMap[activeFocus];
     tmpPos.set(hs.focusPos.x, hs.focusPos.y, hs.focusPos.z);
     tmpLook.set(hs.focusTarget.x, hs.focusTarget.y, hs.focusTarget.z);
   } else {
-    tmpPos.copy(BASE_POS);
-    tmpLook.copy(BASE_POS).add(lookOffset);
+    tmpPos.set(player.position.x, player.position.y + player.eyeHeight, player.position.z);
+    tmpLook.copy(tmpPos).add(lookOffset);
   }
-
-  tmpPos.x += px * 0.16 + Math.sin(t * 0.42) * 0.012;
-  tmpPos.y += -py * 0.07 + Math.sin(t * 0.61) * 0.008;
-  tmpLook.x += px * 0.22;
-  tmpLook.y += -py * 0.1;
-
-  const k = 1 - Math.exp(-5.5 * dt);
+  tmpPos.y += Math.sin(t * 0.61) * 0.008;
+  const k = 1 - Math.exp(-8 * dt);
   camPos.lerp(tmpPos, k);
   camLook.lerp(tmpLook, k);
-
-  if (shake > 0.001) {
-    shake *= Math.exp(-3.2 * dt);
-    camPos.x += (Math.random() - 0.5) * 0.03 * shake;
-    camPos.y += (Math.random() - 0.5) * 0.03 * shake;
-  }
-
-  camera.position.copy(camPos);
-  camera.lookAt(camLook);
-
-  if (flash > 0.001) {
-    flash *= Math.exp(-2.4 * dt);
-    world.candleLight.intensity += flash * 3;
-  }
-
+  if (shake > 0.001) { shake *= Math.exp(-3.2 * dt); camPos.x += (Math.random() - 0.5) * 0.03 * shake; camPos.y += (Math.random() - 0.5) * 0.03 * shake; }
+  camera.position.copy(camPos); camera.lookAt(camLook);
+  if (flash > 0.001) { flash *= Math.exp(-2.4 * dt); world.candleLight.intensity += flash * 3; }
   renderer.render(scene, camera);
   requestAnimationFrame(tick);
 }

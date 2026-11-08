@@ -124,7 +124,14 @@ body.hot { cursor: pointer; }
   font-variant-numeric: tabular-nums;
 }
 
-#hint {
+#lock-state {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--warm-dim);
+}
+
+body.locked { cursor: none; }
+
   position: fixed;
   bottom: 46px;
   left: 50%;
