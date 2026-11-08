@@ -1,6 +1,7 @@
 import * as THREE from '../vendor/three.module.js';
 import { buildWorld } from './world.js';
 import { createStory } from './story.js';
+import { playTransition } from './transition.js';
 
 const canvas = document.getElementById('stage');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
@@ -259,17 +260,10 @@ function toast(msg) {
   }, 1500);
 }
 
+/* 开场：上一世界 → 武侠客栈的过场，播完再把 HUD 交出来 */
 function intro() {
-  return new Promise((resolve) => {
-    const el = document.getElementById('intro');
-    setTimeout(() => {
-      el.classList.add('out');
-      hudEl.classList.add('on');
-      setTimeout(() => {
-        el.hidden = true;
-        resolve();
-      }, 1500);
-    }, 2600);
+  return playTransition().then(() => {
+    hudEl.classList.add('on');
   });
 }
 
