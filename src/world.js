@@ -388,11 +388,11 @@ export function buildWorld(scene, renderer) {
     halo.scale.set(1.9 * scale, 1.9 * scale, 1);
     g.add(halo);
 
-    const light = new THREE.PointLight(0xff9a4a, 5.5, 11, 1.9);
+    const light = new THREE.PointLight(0xff9a4a, 26, 12, 1.8);
     light.position.y = 0;
     g.add(light);
 
-    lanterns.push({ group: g, light, shadeMat, halo, base: 5.5, phase: Math.random() * 6.28 });
+    lanterns.push({ group: g, light, shadeMat, halo, base: 26, phase: Math.random() * 6.28 });
     return g;
   }
   makeLantern(0.4, 3.15, -1.2, 1.1);
@@ -401,10 +401,10 @@ export function buildWorld(scene, renderer) {
   makeLantern(-1.9, 3.2, 1.6, 0.8);
 
   /* 灯光 */
-  const hemi = new THREE.HemisphereLight(0x33465e, 0x140d07, 0.32);
+  const hemi = new THREE.HemisphereLight(0x33465e, 0x2a1a0e, 1.15);
   scene.add(hemi);
 
-  const spot = new THREE.SpotLight(0xffb070, 14, 16, 0.72, 0.75, 1.6);
+  const spot = new THREE.SpotLight(0xffb070, 55, 16, 0.72, 0.75, 1.6);
   spot.position.set(0.4, 4.3, 0.4);
   spot.target.position.set(0.4, 0, -1.4);
   spot.castShadow = true;
@@ -414,12 +414,12 @@ export function buildWorld(scene, renderer) {
   spot.shadow.camera.far = 14;
   scene.add(spot, spot.target);
 
-  const moon = new THREE.DirectionalLight(0x6f8db8, 0.85);
+  const moon = new THREE.DirectionalLight(0x6f8db8, 1.9);
   moon.position.set(11, 6.5, -1);
   moon.target.position.set(0, 0.6, -1.6);
   scene.add(moon, moon.target);
 
-  const candleLight = new THREE.PointLight(0xff8c3a, 2.2, 6, 2);
+  const candleLight = new THREE.PointLight(0xff8c3a, 7, 7, 2);
   candleLight.position.set(1.05, 1.2, -1.2);
   scene.add(candleLight);
 
@@ -494,7 +494,7 @@ export function buildWorld(scene, renderer) {
       l.halo.material.opacity = 0.62 * f + 0.12;
       l.shadeMat.emissiveIntensity = 1.2 + f * 0.5;
     }
-    candleLight.intensity = 2.0 + Math.sin(t * 9.3) * 0.28 + Math.sin(t * 3.1) * 0.18;
+    candleLight.intensity = 6.5 + Math.sin(t * 9.3) * 0.9 + Math.sin(t * 3.1) * 0.6;
     flame.scale.set(0.68 + Math.sin(t * 11) * 0.05, 1.5 + Math.sin(t * 8) * 0.12, 0.68);
 
     const pos = dust.geometry.attributes.position;

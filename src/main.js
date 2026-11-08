@@ -8,9 +8,9 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.18;
+renderer.toneMappingExposure = 1.3;
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = THREE.PCFShadowMap;
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(52, window.innerWidth / window.innerHeight, 0.1, 60);
@@ -326,15 +326,20 @@ document.getElementById('sound').onclick = (e) => {
 
 /* ---------- 循环 ---------- */
 
-const clock = new THREE.Clock();
 const tmpPos = new THREE.Vector3();
 const tmpLook = new THREE.Vector3();
 const lookOffset = new THREE.Vector3();
 const euler = new THREE.Euler(0, 0, 0, 'YXZ');
 
+let lastTime = performance.now();
+let elapsed = 0;
+
 function tick() {
-  const dt = Math.min(clock.getDelta(), 0.05);
-  const t = clock.elapsedTime;
+  const now = performance.now();
+  const dt = Math.min((now - lastTime) / 1000, 0.05);
+  lastTime = now;
+  elapsed += dt;
+  const t = elapsed;
 
   world.update(dt);
 
