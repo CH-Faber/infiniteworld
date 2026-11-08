@@ -1,0 +1,12 @@
+{
+  "schema": "iw-global-items-v1",
+  "items": [
+    {
+      "id": "team23_knife",
+      "name": "阿七师父的刀",
+      "type": "weapon",
+      "desc": "故人留在桌上的刀。刀鞘还沾着听雨楼的雪，握柄却认得你的手。",
+      "effect": { "stat": "attack", "value": 1, "trigger": "passive" }
+    }
+  ]
+}

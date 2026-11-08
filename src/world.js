@@ -439,12 +439,12 @@ export function buildWorld(scene) {
     root.add(grip);
   });
 
-  // 柜台后墙的货架与酒坛
-  [1.55, 2.32].forEach((y) => box(0.52, 0.07, 3.1, wood, 8.7, y, 2.5, root, false));
-  [-0.6, 0.5, 1.6].forEach((z) => {
-    [1.62, 2.39].forEach((y) => {
+  // 柜台后墙的货架与酒坛（抬高贴墙，避开老板娘的头）
+  [2.2, 3.0].forEach((y) => box(0.46, 0.07, 3.1, wood, 8.94, y, 2.5, root, false));
+  [-0.9, 0.2, 1.3].forEach((z) => {
+    [2.27, 3.07].forEach((y) => {
       const jar = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.09, 0.28, 10), new THREE.MeshStandardMaterial({ color: 0x4d3d30, roughness: 0.78 }));
-      jar.position.set(8.66, y + 0.17, 2.5 + z);
+      jar.position.set(8.94, y + 0.17, 2.5 + z);
       jar.castShadow = true;
       root.add(jar);
     });
@@ -558,6 +558,13 @@ export function buildWorld(scene) {
   plaque.rotation.y = Math.PI;
   root.add(plaque);
   box(3.24, 1.34, 0.12, woodDark, 0, 5.12, 8.09, root, false);
+  // 朝街的匾额：开场镜头从长街走近时看到的是这一面
+  const streetPlaque = new THREE.Mesh(
+    new THREE.PlaneGeometry(3.0, 1.12),
+    new THREE.MeshBasicMaterial({ map: signTex('听雨楼', 1024, 384) })
+  );
+  streetPlaque.position.set(0, 5.12, 8.16);
+  root.add(streetPlaque);
 
   // 门槛 · 门枕石 · 卷起的门帘（门扇卸了，夜里敞着迎客）
   box(7.2, 0.16, 0.34, wood, 0, 0.08, 8.28, root, false);
@@ -637,15 +644,17 @@ export function buildWorld(scene) {
   box(1.05, 1.0, 2.9, woodDark, 0, 0.5, 0, counter);
   box(1.2, 0.09, 3.1, wood, 0, 1.04, 0, counter);
   box(0.86, 0.26, 0.36, wood, -0.1, 0.6, -1.0, counter);
-  const ledger = box(0.5, 0.055, 0.38, paper, -0.12, 1.12, -0.25, counter);
+  // 账本/算盘/抹布都挪到柜面远端，别挡着老板娘
+  const ledger = box(0.44, 0.05, 0.34, paper, -0.08, 1.115, -1.15, counter);
   ledger.rotation.y = 0.2;
-  const abacus = box(0.5, 0.05, 0.26, woodDark, 0.1, 1.11, 0.55, counter);
-  // 油灯
+  const abacus = box(0.46, 0.05, 0.24, woodDark, 0.08, 1.11, -0.72, counter);
+  abacus.rotation.y = -0.12;
+  // 油灯（挪到柜台远端，别挡老板娘的脸）
   const lampBody = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 0.14, 8), brassMat);
-  lampBody.position.set(0.2, 1.16, 0.05);
+  lampBody.position.set(0.25, 1.16, -1.15);
   counter.add(lampBody);
   const lampFlame = new THREE.Mesh(new THREE.SphereGeometry(0.026, 8, 8), new THREE.MeshBasicMaterial({ color: 0xffb066 }));
-  lampFlame.position.set(0.2, 1.26, 0.05);
+  lampFlame.position.set(0.25, 1.26, -1.15);
   lampFlame.scale.set(0.7, 1.5, 0.7);
   counter.add(lampFlame);
 
@@ -1164,7 +1173,7 @@ export function buildWorld(scene) {
   // 海捕文书
   const warrant = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.4), paper);
   warrant.rotation.set(-Math.PI / 2, 0, 0.3);
-  warrant.position.set(-0.35, 0.86, -0.25);
+  warrant.position.set(-0.35, 0.848, -0.25);
   tableA.add(warrant);
   pourTargets.captain = makeCup(tableA, -0.36, 0.84, -0.26);
 
@@ -1194,10 +1203,10 @@ export function buildWorld(scene) {
 
   // 老板娘
   const keeper = makePerson({ x: 8.72, z: 2.5, rot: -Math.PI / 2, robe: 0x5a2a22, hat: 'bun', seated: false, sleeve: 'wide', apron: true, hotspot: 'keeper' });
-  pourTargets.keeper = makeCup(counter, 0.18, 1.085, 0.62);
-  // 抹布
-  const towel = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.03, 0.2), new THREE.MeshStandardMaterial({ color: 0xb9b2a0, roughness: 1 }));
-  towel.position.set(8.72, 1.22, 1.95);
+  pourTargets.keeper = makeCup(counter, 0.6, 1.085, 0.25);
+  // 抹布（搭在柜台远端）
+  const towel = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.03, 0.2), new THREE.MeshStandardMaterial({ color: 0x8e8778, roughness: 1 }));
+  towel.position.set(8.62, 1.22, 1.45);
   towel.rotation.z = 0.24;
   root.add(towel);
 
@@ -1569,7 +1578,7 @@ export function buildWorld(scene) {
   scene.add(moon, moon.target);
 
   const candleLight = new THREE.PointLight(0xff8c3a, 10, 8, 2);
-  candleLight.position.set(8.2, 1.35, 2.55);
+  candleLight.position.set(8.25, 1.45, 1.35);
   scene.add(candleLight);
 
   const yardLight = new THREE.PointLight(0xa8bed8, 10, 16, 2);
@@ -1727,17 +1736,17 @@ export function buildWorld(scene) {
 
   const V = (x, y, z) => new THREE.Vector3(x, y, z);
   const hotspots = [
-    { id: 'keeper', label: '给老板娘添茶', focusPos: V(5.4, 1.6, 3.4), focusTarget: V(8.55, 1.45, 2.5) },
-    { id: 'captain', label: '给皂衣客添茶', focusPos: V(2.3, 1.6, 6.0), focusTarget: V(4.0, 1.34, 3.9) },
-    { id: 'hunter', label: '给行商添茶', focusPos: V(2.6, 1.6, 1.7), focusTarget: V(4.3, 1.3, -1.2) },
-    { id: 'senior', label: '给白衣客添茶', focusPos: V(-3.0, 1.6, 4.7), focusTarget: V(-5.4, 1.32, 2.6) },
-    { id: 'teller', label: '听说书人往下唱', focusPos: V(-2.4, 1.65, 0.5), focusTarget: V(-4.9, 1.55, -3.1) },
-    { id: 'tableG', label: '给这桌添茶', focusPos: V(2.9, 1.6, 2.1), focusTarget: V(0.0, 1.18, 0.35) },
-    { id: 'tableE', label: '给这桌添茶', focusPos: V(-2.6, 1.6, 6.7), focusTarget: V(-4.9, 1.16, 6.0) },
-    { id: 'tableF', label: '给这桌添茶', focusPos: V(-0.1, 1.6, 0.5), focusTarget: V(-2.2, 1.16, -1.9) },
-    { id: 'tableH', label: '给这桌添茶', focusPos: V(3.8, 1.6, -0.6), focusTarget: V(6.1, 1.18, -3.2) },
-    { id: 'tableI', label: '给这桌添茶', focusPos: V(3.0, 1.6, -1.0), focusTarget: V(1.9, 1.18, -3.1) },
-    { id: 'tableJ', label: '给这桌添茶', focusPos: V(4.3, 1.6, 5.3), focusTarget: V(6.5, 1.18, 6.0) },
+    { id: 'keeper', label: '给老板娘添茶', kind: 'wine', focusPos: V(5.4, 1.6, 3.4), focusTarget: V(8.55, 1.45, 2.5) },
+    { id: 'captain', label: '给皂衣客上酒', kind: 'wine', focusPos: V(2.3, 1.6, 6.0), focusTarget: V(4.0, 1.34, 3.9) },
+    { id: 'hunter', label: '给刀客上酒', kind: 'wine', focusPos: V(2.6, 1.6, 1.7), focusTarget: V(4.3, 1.3, -1.2) },
+    { id: 'senior', label: '给白衣客上酒', kind: 'wine', focusPos: V(-3.0, 1.6, 4.7), focusTarget: V(-5.4, 1.32, 2.6) },
+    { id: 'teller', label: '听说书人往下唱', kind: 'talk', focusPos: V(-2.4, 1.65, 0.5), focusTarget: V(-4.9, 1.55, -3.1) },
+    { id: 'tableG', label: '给这桌添茶', kind: 'tea', focusPos: V(2.9, 1.6, 2.1), focusTarget: V(0.0, 1.18, 0.35) },
+    { id: 'tableE', label: '给这桌添茶', kind: 'tea', focusPos: V(-2.6, 1.6, 6.7), focusTarget: V(-4.9, 1.16, 6.0) },
+    { id: 'tableF', label: '给这桌添茶', kind: 'tea', focusPos: V(-0.1, 1.6, 0.5), focusTarget: V(-2.2, 1.16, -1.9) },
+    { id: 'tableH', label: '给这桌添茶', kind: 'tea', focusPos: V(3.8, 1.6, -0.6), focusTarget: V(6.1, 1.18, -3.2) },
+    { id: 'tableI', label: '给这桌添茶', kind: 'tea', focusPos: V(3.0, 1.6, -1.0), focusTarget: V(1.9, 1.18, -3.1) },
+    { id: 'tableJ', label: '给这桌添茶', kind: 'tea', focusPos: V(4.3, 1.6, 5.3), focusTarget: V(6.5, 1.18, 6.0) },
   ];
 
   // 把 group 上的 hotspot 传给子网格
@@ -1756,7 +1765,13 @@ export function buildWorld(scene) {
   const raycastables = [];
   root.traverse((o) => { if (o.isMesh) raycastables.push(o); });
 
-  /* 热点微光 */
+  /* 热点微光：上酒的金亮、添茶的温吞、说书的偏冷 */
+  const GLOW_STYLE = {
+    wine: { color: 0xffc36b, opacity: 0.5, scale: 1.0 },
+    tea: { color: 0xd9c9a0, opacity: 0.3, scale: 0.8 },
+    talk: { color: 0x9db4d0, opacity: 0.4, scale: 0.9 },
+  };
+  const KIND_BY_ID = { keeper: 'wine', captain: 'wine', hunter: 'wine', senior: 'wine', teller: 'talk', tableE: 'tea', tableF: 'tea', tableG: 'tea', tableH: 'tea', tableI: 'tea', tableJ: 'tea' };
   const glows = {};
   const glowAt = {
     keeper: [8.2, 1.5, 2.5],
@@ -1773,12 +1788,13 @@ export function buildWorld(scene) {
   };
   Object.keys(glowAt).forEach((id, i) => {
     const [x, y, z] = glowAt[id];
+    const style = GLOW_STYLE[KIND_BY_ID[id]] || GLOW_STYLE.tea;
     const s = new THREE.Sprite(new THREE.SpriteMaterial({
-      map: haloMap, color: 0xffd8a4, blending: THREE.AdditiveBlending,
-      transparent: true, opacity: 0.46, depthWrite: false,
+      map: haloMap, color: style.color, blending: THREE.AdditiveBlending,
+      transparent: true, opacity: style.opacity, depthWrite: false,
     }));
     s.position.set(x, y, z);
-    s.scale.set(0.9, 0.9, 1);
+    s.scale.set(style.scale, style.scale, 1);
     s.userData.phase = i * 1.7;
     root.add(s);
     glows[id] = s;
@@ -1933,50 +1949,57 @@ export function buildWorld(scene) {
 
   /* ---------- 玩家可行走面与碰撞 ---------- */
   const obstacles = [
-    { minX: -9.2, maxX: -8.65, minZ: -4.6, maxZ: 8.25 },
-    { minX: 8.65, maxX: 9.2, minZ: -4.6, maxZ: 8.25 },
-    { minX: -9.2, maxX: 9.2, minZ: -4.9, maxZ: -4.45 },
-    { minX: 7.35, maxX: 8.7, minZ: 0.95, maxZ: 4.05 },
-    { minX: -4.8, maxX: -2.6, minZ: 5.3, maxZ: 7.1 },
-    { minX: -2.9, maxX: -0.7, minZ: -2.8, maxZ: -1.0 },
-    { minX: 3.1, maxX: 5.1, minZ: 3.15, maxZ: 4.7 },
-    { minX: 5.2, maxX: 7.0, minZ: -3.9, maxZ: -2.1 },
-    { minX: 0.8, maxX: 3.0, minZ: -3.8, maxZ: -2.2 },
-    { minX: -7.65, maxX: -5.85, minZ: 6.85, maxZ: 8.25 },
+    { minX: -9.2, maxX: -8.65, minZ: -4.6, maxZ: 8.25 }, { minX: 8.65, maxX: 9.2, minZ: -4.6, maxZ: 8.25 },
+    { minX: -9.2, maxX: 9.2, minZ: -4.9, maxZ: -4.45 }, { minX: 7.35, maxX: 8.7, minZ: 0.95, maxZ: 4.05 },
+    { minX: -4.8, maxX: -2.6, minZ: 5.3, maxZ: 7.1 }, { minX: -2.9, maxX: -0.7, minZ: -2.8, maxZ: -1.0 },
+    { minX: 3.1, maxX: 5.1, minZ: 3.15, maxZ: 4.7 }, { minX: 5.2, maxX: 7.0, minZ: -3.9, maxZ: -2.1 },
+    { minX: 0.8, maxX: 3.0, minZ: -3.8, maxZ: -2.2 }, { minX: -7.65, maxX: -5.85, minZ: 6.85, maxZ: 8.25 },
   ];
   const stair = { minX: -7.5, maxX: -6.0, minZ: 3.1, maxZ: 7.55, rise: 3.2 };
   const floorBounds = { minX: -8.55, maxX: 8.55, minZ: -4.1, maxZ: 7.85 };
-  const circleHits = (x, z, r, b) => {
-    const qx = Math.max(b.minX, Math.min(x, b.maxX));
-    const qz = Math.max(b.minZ, Math.min(z, b.maxZ));
-    return (x - qx) ** 2 + (z - qz) ** 2 < r * r;
-  };
+  const circleHits = (x, z, r, b) => { const qx = Math.max(b.minX, Math.min(x, b.maxX)); const qz = Math.max(b.minZ, Math.min(z, b.maxZ)); return (x - qx) ** 2 + (z - qz) ** 2 < r * r; };
   function getGroundHeight(x, z, floor = 0) {
-    if (x >= stair.minX && x <= stair.maxX && z >= stair.minZ && z <= stair.maxZ) {
-      return THREE.MathUtils.clamp((stair.maxZ - z) / (stair.maxZ - stair.minZ) * stair.rise, 0, stair.rise);
-    }
+    if (x >= stair.minX && x <= stair.maxX && z >= stair.minZ && z <= stair.maxZ) return THREE.MathUtils.clamp((stair.maxZ - z) / (stair.maxZ - stair.minZ) * stair.rise, 0, stair.rise);
     if (floor === 1 && Math.abs(x) >= 7.0 && Math.abs(x) <= 8.2 && z >= -4.0 && z <= 7.7) return 3.28;
     return 0;
   }
   function resolvePlayerMove(position, delta, radius = 0.32, state = { floor: 0 }) {
     const next = position.clone();
-    const tryMove = (axis, amount) => {
-      next[axis] += amount;
-      const onStair = next.x >= stair.minX - radius && next.x <= stair.maxX + radius && next.z >= stair.minZ - radius && next.z <= stair.maxZ + radius;
-      const upper = state.floor === 1 && Math.abs(next.x) >= 7.0 - radius && Math.abs(next.x) <= 8.2 + radius && next.z >= -4.0 && next.z <= 7.7;
-      const out = next.x < floorBounds.minX + radius || next.x > floorBounds.maxX - radius || next.z < floorBounds.minZ + radius || next.z > floorBounds.maxZ - radius;
-      if (out || (!onStair && !upper && obstacles.some((b) => circleHits(next.x, next.z, radius, b)))) next[axis] -= amount;
-    };
-    tryMove('x', delta.x); tryMove('z', delta.z);
+    for (const axis of ['x', 'z']) { const amount = delta[axis]; next[axis] += amount; const onStair = next.x >= stair.minX - radius && next.x <= stair.maxX + radius && next.z >= stair.minZ - radius && next.z <= stair.maxZ + radius; const upper = state.floor === 1 && Math.abs(next.x) >= 7.0 - radius && Math.abs(next.x) <= 8.2 + radius && next.z >= -4.0 && next.z <= 7.7; const out = next.x < floorBounds.minX + radius || next.x > floorBounds.maxX - radius || next.z < floorBounds.minZ + radius || next.z > floorBounds.maxZ - radius; if (out || (!onStair && !upper && obstacles.some((b) => circleHits(next.x, next.z, radius, b)))) next[axis] -= amount; }
     const onStair = next.x >= stair.minX - radius && next.x <= stair.maxX + radius && next.z >= stair.minZ - radius && next.z <= stair.maxZ + radius;
     if (onStair) state.floor = getGroundHeight(next.x, next.z, state.floor) > 1.65 ? 1 : 0;
     else if (state.floor === 1 && !(Math.abs(next.x) >= 7.0 - radius && Math.abs(next.x) <= 8.2 + radius && next.z >= -4.0 && next.z <= 7.7)) state.floor = 0;
-    next.y = getGroundHeight(next.x, next.z, state.floor);
-    return next;
+    next.y = getGroundHeight(next.x, next.z, state.floor); return next;
+  }
+
+  /* ---------- 斟酒锚点：碗底世界坐标 + 玩家所在一侧 ---------- */
+
+  function pourAnchor(id) {
+    const target = pourTargets[id];
+    if (!target) return null;
+    root.updateMatrixWorld(true);
+    const pos = new THREE.Vector3();
+    target.group.getWorldPosition(pos);
+    const hs = hotspots.find((h) => h.id === id);
+    const dir = new THREE.Vector3(0, 0, 1);
+    if (hs) {
+      dir.set(hs.focusPos.x - pos.x, 0, hs.focusPos.z - pos.z);
+      if (dir.lengthSq() < 1e-6) dir.set(0, 0, 1);
+      dir.normalize();
+    }
+    return { pos, dir };
+  }
+
+  /* 特写时把桌上的旧碗藏起来，免得和新碗叠在一起 */
+  function setCupVisible(id, visible) {
+    const target = pourTargets[id];
+    if (!target) return false;
+    target.group.visible = visible;
+    return true;
   }
 
   return {
     root, update, hotspots, raycastables, candleLight,
-    showRelic, setGlow, pourTea, getGroundHeight, resolvePlayerMove,
+    showRelic, setGlow, pourTea, pourAnchor, setCupVisible, getGroundHeight, resolvePlayerMove,
   };
 }

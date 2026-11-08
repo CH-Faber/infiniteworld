@@ -1,7 +1,9 @@
 import * as THREE from '../vendor/three.module.js';
 import { buildWorld } from './world.js';
+import { createPour } from './pour.js';
 import { createStory } from './story.js';
 import { playTransition } from './transition.js';
+import { playRift } from './rift.js';
 
 const canvas = document.getElementById('stage');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
@@ -17,16 +19,18 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(56, window.innerWidth / window.innerHeight, 0.1, 60);
 
 const world = buildWorld(scene, renderer);
+const pour = createPour(scene);
 
 /* ---------- 镜头 ---------- */
 
-const player = { position: new THREE.Vector3(0.8, 0, 7.0), floor: 0, radius: 0.32, eyeHeight: 1.62 };
 const BASE_POS = new THREE.Vector3(0.8, 1.62, 7.0);
 const BASE_LOOK = new THREE.Vector3(1.1, 1.42, -3.8);
+const player = { position: new THREE.Vector3(0.8, 0, 7.0), floor: 0, radius: 0.32, eyeHeight: 1.62 };
+const keys = new Set();
+
 let yaw = 0, pitch = 0;
 let targetYaw = 0, targetPitch = 0;
-const keys = new Set();
-let pointerLocked = false;
+let pointerX = 0.5, pointerY = 0.5;
 let hoveredId = null;
 let shake = 0;
 let flash = 0;
@@ -46,6 +50,7 @@ function focus(id) {
 }
 
 let activeFocus = null;
+let arrival = null;
 
 /* ---------- 交互 ---------- */
 
@@ -80,52 +85,145 @@ function pickAnyObject(clientX, clientY) {
   return raycaster.intersectObjects(world.raycastables, false).length > 0;
 }
 
+/* ---------- 指针锁定：第一人称视角 ---------- */
+
+const reticleEl = document.getElementById('reticle');
+const reticleLabel = document.getElementById('reticle-label');
+let locked = false;
+let lockHintShown = false;
+
+function requestLock() {
+  const p = canvas.requestPointerLock();
+  if (p && p.catch) p.catch(() => {});
+}
+
+document.addEventListener('pointerlockchange', () => {
+  locked = document.pointerLockElement === canvas;
+  document.body.classList.toggle('locked', locked);
+  pointerDownAt = null;
+  dragging = false;
+  tagEl.classList.remove('on');
+  document.body.classList.remove('hot');
+  reticleEl.hidden = !locked;
+  if (!locked) {
+    hoveredId = null;
+    reticleEl.className = '';
+  } else if (!lockHintShown) {
+    lockHintShown = true;
+    toast('移动鼠标环视 · 点击准星对准的客人互动');
+  }
+});
+
 const MISS_LINES = ['这一处，只有潮气和油烟。', '茶客们各说各的，没人理你。', '你只是个端茶的。', '帘子后头，什么也没有。'];
 let lastMissAt = 0;
 
 window.addEventListener('pointermove', (e) => {
-  tagEl.style.transform = `translate(${e.clientX + 18}px, ${e.clientY + 16}px)`;
-  if (pointerLocked) {
-    targetYaw = THREE.MathUtils.clamp(targetYaw - e.movementX * 0.0022, -3.05, 3.05);
-    targetPitch = THREE.MathUtils.clamp(targetPitch - e.movementY * 0.0016, -0.8, 0.55);
+  // 锁定后：鼠标位移直接转成视角，不再依赖拖拽
+  if (locked) {
+    targetYaw = THREE.MathUtils.clamp(targetYaw - e.movementX * 0.0021, -3.05, 3.05);
+    targetPitch = THREE.MathUtils.clamp(targetPitch - e.movementY * 0.0017, -0.28, 0.34);
     return;
   }
+  pointerX = e.clientX / window.innerWidth;
+  pointerY = e.clientY / window.innerHeight;
+
+  tagEl.style.transform = `translate(${e.clientX + 18}px, ${e.clientY + 16}px)`;
+
+  if (pointerDownAt && !dragging) {
+    const dx = e.clientX - pointerDownAt.x;
+    const dy = e.clientY - pointerDownAt.y;
+    if (Math.hypot(dx, dy) > 6) dragging = true;
+  }
+  if (dragging && pointerDownAt) {
+    targetYaw = THREE.MathUtils.clamp(targetYaw - (e.clientX - pointerDownAt.x) * 0.0022, -3.05, 3.05);
+    targetPitch = THREE.MathUtils.clamp(targetPitch + (e.clientY - pointerDownAt.y) * 0.0016, -0.22, 0.3);
+    pointerDownAt = { x: e.clientX, y: e.clientY };
+  }
+
   if (story.busy) { tagEl.classList.remove('on'); document.body.classList.remove('hot'); return; }
+  if (dragging) return;
+
   const id = pickHotspot(e.clientX, e.clientY);
   if (id && id !== hoveredId) {
     const hs = focusMap[id];
     tagEl.textContent = hs ? hs.label : '';
-    tagEl.classList.add('on'); document.body.classList.add('hot');
+    tagEl.classList.add('on');
+    document.body.classList.add('hot');
   } else if (!id) {
-    tagEl.classList.remove('on'); document.body.classList.remove('hot');
+    tagEl.classList.remove('on');
+    document.body.classList.remove('hot');
   }
   hoveredId = id;
 });
 
-canvas.addEventListener('click', () => {
+window.addEventListener('pointerdown', (e) => {
   startAudio();
-  if (!story.busy && !pointerLocked && canvas.requestPointerLock) canvas.requestPointerLock();
+  if (pour.active) { pour.press(); return; }
+  if (locked) return;
+  pointerDownAt = { x: e.clientX, y: e.clientY };
+  dragging = false;
 });
-document.addEventListener('pointerlockchange', () => {
-  pointerLocked = document.pointerLockElement === canvas;
-  document.body.classList.toggle('locked', pointerLocked);
-  document.getElementById('lock-state').textContent = pointerLocked ? '鼠标 · 已锁定' : '点击画面锁定鼠标';
+
+window.addEventListener('pointerup', (e) => {
+  if (pour.active) {
+    pointerDownAt = null;
+    dragging = false;
+    pour.release();
+    return;
+  }
+  // 锁定中：点击 = 与准星对准的客人互动
+  if (locked) {
+    if (story.busy) return;
+    const id = pickHotspot(window.innerWidth / 2, window.innerHeight / 2);
+    if (id) {
+      hintEl.classList.add('gone');
+      world.setGlow(id, false);
+      story.inspect(id);
+    }
+    return;
+  }
+  const wasDrag = dragging;
+  pointerDownAt = null;
+  dragging = false;
+  if (wasDrag) return;
+  if (story.busy) return;
+  const id = pickHotspot(e.clientX, e.clientY);
+  if (id) {
+    hintEl.classList.add('gone');
+    world.setGlow(id, false);
+    story.inspect(id);
+    return;
+  }
+  // 点到画面空白：进入第一人称视角；若点中的是死物件，顺带给一句反馈
+  if (e.target === canvas) {
+    if (pickAnyObject(e.clientX, e.clientY)) {
+      const t = performance.now();
+      if (t - lastMissAt > 2200) {
+        lastMissAt = t;
+        toast(MISS_LINES[Math.floor(Math.random() * MISS_LINES.length)]);
+      }
+    }
+    requestLock();
+  }
 });
-window.addEventListener('keydown', (e) => { if (/^[wasd]$/i.test(e.key)) { keys.add(e.key.toLowerCase()); e.preventDefault(); } });
+
+window.addEventListener('pointerleave', () => {
+  dragging = false;
+  pointerDownAt = null;
+});
+window.addEventListener('keydown', (e) => {
+  if (/^[wasd]$/i.test(e.key)) { keys.add(e.key.toLowerCase()); e.preventDefault(); }
+});
 window.addEventListener('keyup', (e) => { keys.delete(e.key.toLowerCase()); });
 window.addEventListener('blur', () => keys.clear());
 
-window.addEventListener('pointerdown', (e) => { pointerDownAt = { x: e.clientX, y: e.clientY }; startAudio(); });
-window.addEventListener('pointerup', (e) => {
-  pointerDownAt = null;
-  if (pointerLocked || story.busy) return;
-  const id = pickHotspot(e.clientX, e.clientY);
-  if (id) { hintEl.classList.add('gone'); world.setGlow(id, false); story.inspect(id); }
-});
-window.addEventListener('pointerleave', () => { pointerDownAt = null; });
-
 // 键盘推进：空格 / 回车继续，1~3 选择选项
 window.addEventListener('keydown', (e) => {
+  if (pour.active) {
+    if (e.repeat) return;
+    if (e.key === ' ' || e.code === 'Space') { e.preventDefault(); pour.press(); }
+    return;
+  }
   if (e.repeat || dlg.hidden) return;
 
   if (!nextBtn.hidden && (e.key === 'Enter' || e.key === ' ' || e.code === 'Space')) {
@@ -141,6 +239,13 @@ window.addEventListener('keydown', (e) => {
       e.preventDefault();
       btn.click();
     }
+  }
+});
+
+window.addEventListener('keyup', (e) => {
+  if (pour.active && (e.key === ' ' || e.code === 'Space')) {
+    e.preventDefault();
+    pour.release();
   }
 });
 
@@ -168,7 +273,7 @@ function renderHud(s) {
     document.getElementById(bars[k]).style.setProperty('--fill', `${Math.min(s[k] / 4, 1) * 100}%`);
   });
   document.getElementById('val-served').textContent = CN[Math.min(s.served || 0, 5)];
-  document.getElementById('bar-served').style.setProperty('--fill', `${Math.min((s.served || 0) / 4, 1) * 100}%`);
+  document.getElementById('bar-served').style.setProperty('--fill', `${Math.min((s.served || 0) / 3, 1) * 100}%`);
 }
 
 function say(speaker, text) {
@@ -235,29 +340,21 @@ function toast(msg) {
   }, 1500);
 }
 
-/* 开场：上一世界 → 武侠客栈的过场，播完再把 HUD 交出来 */
+/* 开场：先穿越，再由白光接进 3D 长街，最后穿门落到阿七的位置 */
 function intro() {
-  return playTransition().then(() => {
+  return playRift().then(() => {
+    arrival = playTransition({ camera, endPosition: BASE_POS, endLook: BASE_LOOK });
+    return arrival.promise;
+  }).then(() => {
+    arrival = null;
+    camPos.copy(BASE_POS);
+    camLook.copy(BASE_LOOK);
     hudEl.classList.add('on');
   });
 }
 
-function end(payload) {
-  const el = document.getElementById('ending');
-  document.getElementById('ending-title').textContent = payload.title;
-  document.getElementById('ending-text').textContent = payload.text;
-  const s = story.state;
-  document.getElementById('ending-stats').innerHTML =
-    `<span>赏钱<b>${CN[Math.min(s.silver, 5)]}</b></span>` +
-    `<span>名声<b>${CN[Math.min(s.fame, 5)]}</b></span>` +
-    `<span>疑心<b>${CN[Math.min(s.suspicion, 5)]}</b></span>` +
-    `<span>留下<b>${payload.item}</b></span>`;
-  el.querySelector('.ending-note').textContent = payload.hook;
-  el.hidden = false;
-  requestAnimationFrame(() => el.classList.add('on'));
-}
-
-document.getElementById('again').onclick = () => location.reload();
+/* 结尾不再弹二维结算卡：画面自己淡下去，剩下交给下一队 */
+const fadeEl = document.getElementById('fade');
 
 const ui = {
   intro,
@@ -266,10 +363,11 @@ const ui = {
   hidePanel,
   toast,
   hud: renderHud,
-  end,
   focusOn: focus,
   showRelic: (id) => world.showRelic(id),
   showHint: (t) => { hintEl.textContent = t; hintEl.classList.remove('gone'); },
+  hideHint: () => { hintEl.classList.add('gone'); },
+  fade: (on = true) => { fadeEl.style.opacity = on ? '1' : '0'; },
 };
 
 const story = createStory(ui, {
@@ -281,6 +379,15 @@ const story = createStory(ui, {
   pour(id) {
     if (world.pourTea(id)) sfxPour();
   },
+  /* 斟酒特写：点桌 → 推镜 → 交给 pour 模块判定 → 拉回 */
+  pourWine(id, opts) {
+    const a = world.pourAnchor(id);
+    if (!a) return Promise.resolve({ hit: true, level: 0, target: 0, spilled: false, taken: false });
+    world.setCupVisible(id, false);
+    sfxPour();
+    return pour.start(a.pos, a.dir, opts || {}).finally(() => world.setCupVisible(id, true));
+  },
+  pourTarget: () => pour.rollTarget(),
 });
 
 /* ---------- 声音 ---------- */
@@ -391,11 +498,7 @@ function tick() {
   elapsed += dt;
   const t = elapsed;
 
-  targetYaw *= 0.999;
-  targetPitch *= 0.999;
-  yaw += (targetYaw - yaw) * 0.12;
-  pitch += (targetPitch - pitch) * 0.12;
-  if (!story.busy && !activeFocus) {
+  if (!story.busy && !activeFocus && !pour.active) {
     move.set(0, 0, 0);
     if (keys.has('w')) move.z -= 1;
     if (keys.has('s')) move.z += 1;
@@ -403,29 +506,87 @@ function tick() {
     if (keys.has('d')) move.x += 1;
     if (move.lengthSq()) {
       move.normalize().applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw).multiplyScalar(dt * 3.2);
-      const next = world.resolvePlayerMove(player.position, move, player.radius, player);
-      player.position.copy(next);
+      player.position.copy(world.resolvePlayerMove(player.position, move, player.radius, player));
     }
   }
-  world.update(dt);
 
+  world.update(dt);
+  pour.update(dt);
+
+  // 过场期间只让镜头沿 3D 路径运动，场景里的雪、灯、客人仍在实时更新
+  if (arrival) {
+    arrival.update(dt);
+    renderer.render(scene, camera);
+    requestAnimationFrame(tick);
+    return;
+  }
+
+  // 视角不再回中，纯惯性平滑
+  yaw += (targetYaw - yaw) * 0.14;
+  pitch += (targetPitch - pitch) * 0.14;
+
+  const px = locked ? 0 : (pointerX - 0.5) * 2;
+  const py = locked ? 0 : (pointerY - 0.5) * 2;
+
+  lookOffset.copy(BASE_LOOK).sub(BASE_POS);
   euler.set(pitch, yaw, 0);
-  lookOffset.set(0, 0, -4).applyEuler(euler);
+  lookOffset.applyEuler(euler);
+
   if (activeFocus) {
     const hs = focusMap[activeFocus];
     tmpPos.set(hs.focusPos.x, hs.focusPos.y, hs.focusPos.z);
     tmpLook.set(hs.focusTarget.x, hs.focusTarget.y, hs.focusTarget.z);
   } else {
-    tmpPos.set(player.position.x, player.position.y + player.eyeHeight, player.position.z);
+    tmpPos.copy(BASE_POS);
+    tmpPos.x += player.position.x - 0.8;
+    tmpPos.z += player.position.z - 7.0;
+    tmpPos.y = player.position.y + player.eyeHeight;
     tmpLook.copy(tmpPos).add(lookOffset);
   }
-  tmpPos.y += Math.sin(t * 0.61) * 0.008;
-  const k = 1 - Math.exp(-8 * dt);
+
+  tmpPos.x += px * 0.16 + Math.sin(t * 0.42) * 0.012;
+  tmpPos.y += -py * 0.07 + Math.sin(t * 0.61) * 0.008;
+  tmpLook.x += px * 0.22;
+  tmpLook.y += -py * 0.1;
+
+  /* 斟酒特写：按 cine.k 把大堂机位混到碗前 */
+  const ck = Math.max(0, Math.min(1, pour.cine.k));
+  if (ck > 0.001) {
+    tmpPos.lerp(pour.cine.pos, ck);
+    tmpLook.lerp(pour.cine.look, ck);
+  }
+
+  const k = 1 - Math.exp(-(5.5 + ck * 16) * dt);
   camPos.lerp(tmpPos, k);
   camLook.lerp(tmpLook, k);
-  if (shake > 0.001) { shake *= Math.exp(-3.2 * dt); camPos.x += (Math.random() - 0.5) * 0.03 * shake; camPos.y += (Math.random() - 0.5) * 0.03 * shake; }
-  camera.position.copy(camPos); camera.lookAt(camLook);
-  if (flash > 0.001) { flash *= Math.exp(-2.4 * dt); world.candleLight.intensity += flash * 3; }
+
+  if (shake > 0.001) {
+    shake *= Math.exp(-3.2 * dt);
+    camPos.x += (Math.random() - 0.5) * 0.03 * shake;
+    camPos.y += (Math.random() - 0.5) * 0.03 * shake;
+  }
+
+  camera.position.copy(camPos);
+  camera.lookAt(camLook);
+
+  // 锁定状态下：对话/斟酒一占用就松开鼠标；否则每帧从屏幕中心拾取，驱动准星与分色标签
+  if (locked && story.busy) {
+    document.exitPointerLock();
+  } else if (locked) {
+    const centerId = pickHotspot(window.innerWidth / 2, window.innerHeight / 2);
+    if (centerId !== hoveredId) {
+      hoveredId = centerId;
+      const hs = centerId ? focusMap[centerId] : null;
+      reticleEl.className = centerId ? `on ${hs && hs.kind ? hs.kind : ''}` : '';
+      reticleLabel.textContent = hs ? hs.label : '';
+    }
+  }
+
+  if (flash > 0.001) {
+    flash *= Math.exp(-2.4 * dt);
+    world.candleLight.intensity += flash * 3;
+  }
+
   renderer.render(scene, camera);
   requestAnimationFrame(tick);
 }
@@ -436,6 +597,14 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
+window.addEventListener('unhandledrejection', (event) => {
+  console.error(event.reason);
+  story.fail('世界线在此处断开');
+});
+
 renderHud(story.state);
 tick();
-story.open();
+story.open().catch((error) => {
+  console.error(error);
+  story.fail('世界线在开场时断开');
+});
